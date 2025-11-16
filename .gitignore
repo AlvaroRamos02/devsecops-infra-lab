@@ -1,0 +1,10 @@
+# Logs
+*.log
+
+# Python cache (por si algún día metemos scripts)
+__pycache__/
+*.pyc
+
+# Entornos
+.env
+.env.*
