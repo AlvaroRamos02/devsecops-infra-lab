@@ -1,4 +1,4 @@
-name: CI - SAST + SCA + Build Docker
+name: CI - SAST + SCA (FS & Image) + Build Docker
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  # 1) SAST con Semgrep
+  # 1) SAST con Semgrep (código fuente)
   sast:
     runs-on: self-hosted
 
@@ -30,19 +30,53 @@ jobs:
           DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
         run: |
           echo "Subiendo Semgrep a DefectDojo..."
-          curl -v -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
             -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
             -F "scan_type=Semgrep JSON Report" \
             -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
             -F "file=@semgrep_results.json" \
             -F "minimum_severity=Low" \
             -F "active=true" \
-            -F "verified=false" || echo "No se pudo conectar a DefectDojo."
+            -F "verified=false" || echo "No se pudo conectar a DefectDojo (Semgrep)."
 
-  # 2) Build de la imagen Docker (depende de SAST)
+  # 2) SCA con Trivy FS (repositorio / dependencias)
+  sca_fs:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run Trivy in FS mode (SCA repo) and generate JSON report
+        run: |
+          docker run --rm \
+            -v "${PWD}:/work" \
+            aquasec/trivy:latest fs \
+            --format json \
+            -o /work/trivy_fs_results.json \
+            /work
+
+      - name: Upload Trivy FS results to DefectDojo
+        continue-on-error: true
+        env:
+          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+          DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+        run: |
+          echo "Subiendo Trivy FS a DefectDojo..."
+          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+            -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
+            -F "scan_type=Trivy Scan" \
+            -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+            -F "file=@trivy_fs_results.json" \
+            -F "minimum_severity=Low" \
+            -F "active=true" \
+            -F "verified=false" || echo "No se pudo conectar a DefectDojo (Trivy FS)."
+
+  # 3) Build de la imagen Docker (SOLO si SAST + SCA FS pasan)
   build:
     runs-on: self-hosted
-    needs: sast
+    needs: [sast, sca_fs]
 
     steps:
       - name: Checkout repo
@@ -52,43 +86,43 @@ jobs:
         run: |
           docker build -t devsecops-nginx ./docker/nginx
 
-  # 3) SCA de la imagen con Trivy (también depende de SAST)
-  sca:
+  # 4) SCA de la imagen Docker con Trivy Image (post-build)
+  sca_image:
     runs-on: self-hosted
-    needs: sast
+    needs: build
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Build Docker image for SCA
+      - name: Build Docker image for SCA (por si acaso)
         run: |
           docker build -t devsecops-nginx ./docker/nginx
 
-      - name: Run Trivy (SCA) and generate JSON report
+      - name: Run Trivy Image (SCA contenedor) and generate JSON report
         run: |
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${PWD}:/work" \
             aquasec/trivy:latest image \
             --format json \
-            -o /work/trivy_results.json \
+            -o /work/trivy_image_results.json \
             devsecops-nginx:latest
 
-      - name: Upload Trivy results to DefectDojo
+      - name: Upload Trivy Image results to DefectDojo
         continue-on-error: true
         env:
           DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
           DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
           DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
         run: |
-          echo "Subiendo Trivy a DefectDojo..."
-          curl -v -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+          echo "Subiendo Trivy Image a DefectDojo..."
+          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
             -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
             -F "scan_type=Trivy Scan" \
             -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
-            -F "file=@trivy_results.json" \
+            -F "file=@trivy_image_results.json" \
             -F "minimum_severity=Low" \
             -F "active=true" \
-            -F "verified=false" || echo "No se pudo conectar a DefectDojo."
+            -F "verified=false" || echo "No se pudo conectar a DefectDojo (Trivy Image)."
 
