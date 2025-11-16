@@ -3,6 +3,140 @@ name: CI - SAST + SCA (FS & Image) + Build Docker
 on:
   push:
     branches: [ "main" ]
+
+jobs:
+
+  #########################################
+  # 1) SAST (Semgrep)
+  #########################################
+  sast:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep (SAST) and generate JSON report
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/src \
+            returntocorp/semgrep semgrep scan \
+            --config=auto \
+            --json \
+            --output=semgrep-report.json
+
+      - name: Upload Semgrep results to DefectDojo
+        continue-on-error: true
+        env:
+          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+          DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+        run: |
+          echo "Subiendo Semgrep a DefectDojo..."
+          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+            -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
+            -F "scan_type=Semgrep JSON Report" \
+            -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+            -F "product_name=DevSecOps Lab" \
+            -F "file=@semgrep-report.json" \
+            -F "active=true" \
+            -F "verified=false" || echo "Error al subir Semgrep."
+
+
+  #########################################
+  # 2) SCA a nivel de repositorio (Trivy FS)
+  #########################################
+  sca_fs:
+    runs-on: self-hosted
+    needs: sast
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run Trivy FS scan (SCA repo) and generate JSON report
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/src \
+            aquasec/trivy fs /src \
+            --format json \
+            --output trivy-fs-report.json
+
+      - name: Upload Trivy FS results to DefectDojo
+        continue-on-error: true
+        env:
+          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+          DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+        run: |
+          echo "Subiendo Trivy FS a DefectDojo..."
+          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+            -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
+            -F "scan_type=Trivy Scan" \
+            -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+            -F "product_name=DevSecOps Lab" \
+            -F "file=@trivy-fs-report.json" \
+            -F "active=true" \
+            -F "verified=false" || echo "Error al subir Trivy FS."
+
+
+  #########################################
+  # 3) Build Docker
+  #########################################
+  build:
+    runs-on: self-hosted
+    needs: [sast, sca_fs]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t myapp:latest .
+
+      - name: Save Docker image as tar
+        run: |
+          docker save myapp:latest -o image.tar
+
+
+  #########################################
+  # 4) SCA de la imagen (Trivy Image)
+  #########################################
+  sca_image:
+    runs-on: self-hosted
+    needs: build
+
+    steps:
+      - name: Run Trivy on Docker image and generate JSON report
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/image.tar:/image.tar \
+            aquasec/trivy image --input /image.tar \
+            --format json \
+            --output trivy-image-report.json
+
+      - name: Upload Trivy Image results to DefectDojo
+        continue-on-error: true
+        env:
+          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+          DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+        run: |
+          echo "Subiendo Trivy Image a DefectDojo..."
+          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+            -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
+            -F "scan_type=Trivy Scan" \
+            -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+            -F "product_name=DevSecOps Lab" \
+            -F "file=@trivy-image-report.json" \
+            -F "active=true" \
+            -F "verified=false" || echo "Error al subir Trivy Image."
+name: CI - SAST + SCA (FS & Image) + Build Docker
+
+on:
+  push:
+    branches: [ "main" ]
   pull_request:
 
 jobs:
