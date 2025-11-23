@@ -32,6 +32,12 @@ jobs:
           DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
           DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
         run: |
+          if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
+            echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
+          else
+            echo "DEFECTDOJO_ENGAGEMENT_ID is set (length: ${#DEFECTDOJO_ENGAGEMENT_ID})"
+          fi
+          
           echo "Subiendo Semgrep a DefectDojo..."
           curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
             -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
@@ -69,6 +75,12 @@ jobs:
           DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
           DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
         run: |
+          if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
+            echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
+          else
+            echo "DEFECTDOJO_ENGAGEMENT_ID is set (length: ${#DEFECTDOJO_ENGAGEMENT_ID})"
+          fi
+
           echo "Subiendo Trivy FS a DefectDojo..."
           curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
             -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
@@ -123,6 +135,12 @@ jobs:
           DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
           DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
         run: |
+          if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
+            echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
+          else
+            echo "DEFECTDOJO_ENGAGEMENT_ID is set (length: ${#DEFECTDOJO_ENGAGEMENT_ID})"
+          fi
+
           echo "Subiendo Trivy Image a DefectDojo..."
           curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
             -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
