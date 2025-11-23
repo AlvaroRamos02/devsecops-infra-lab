@@ -21,7 +21,7 @@ jobs:
             returntocorp/semgrep semgrep scan \
             --config=auto \
             --json \
-            --output=semgrep-report.json
+            --output=/src/semgrep-report.json
 
       #########################################
       # 2) SCA a nivel de repositorio (Trivy FS)
@@ -32,7 +32,7 @@ jobs:
             -v ${{ github.workspace }}:/src \
             aquasec/trivy fs /src \
             --format json \
-            --output trivy-fs-report.json
+            --output /src/trivy-fs-report.json
 
       #########################################
       # 3) Build Docker
@@ -73,3 +73,7 @@ jobs:
         with:
           name: security-dashboard
           path: dashboard/
+
+      - name: Deploy Dashboard (Local)
+        run: |
+          docker-compose up -d --force-recreate dashboard

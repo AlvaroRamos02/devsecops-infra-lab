@@ -4,39 +4,25 @@ Laboratorio personal para practicar CI/CD y seguridad (DevSecOps) con Docker, Ng
 
 ## 🛡️ Security Dashboard
 
-Este proyecto cuenta con un dashboard estático para visualizar los resultados de los análisis de seguridad (SAST y SCA).
+Este proyecto cuenta con un dashboard automatizado para visualizar los resultados de los análisis de seguridad (SAST y SCA).
 
-### 1. Generar Reportes
+### Automatización
 
-Para alimentar el dashboard, necesitas generar los reportes JSON y moverlos a la carpeta `dashboard/data`.
+El dashboard se genera y despliega automáticamente cada vez que se ejecuta el pipeline de CI/CD (GitHub Actions).
 
-```bash
-# Crear directorio de datos si no existe
-mkdir -p dashboard/data
+1.  **Generación de Reportes**: El pipeline ejecuta Semgrep y Trivy, generando los archivos JSON necesarios.
+2.  **Despliegue**: Al finalizar el análisis, se levanta un contenedor Docker que sirve el dashboard en el puerto **7888**.
 
-# 1. SAST - Semgrep
-docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep scan --config=auto --json --output=semgrep-report.json
-mv semgrep-report.json dashboard/data/
+### Acceso
 
-# 2. SCA - Trivy Filesystem
-# Nota: Usamos /src/trivy-fs-report.json para asegurar que el archivo se guarde en el volumen montado
-docker run --rm -v $(pwd):/src aquasec/trivy fs /src --format json --output /src/trivy-fs-report.json
-mv trivy-fs-report.json dashboard/data/
+Una vez que el job ha finalizado, puedes acceder al dashboard en:
 
-# 3. SCA - Trivy Image
-# Construir y guardar la imagen primero
-docker build -t myapp:latest .
-docker save myapp:latest -o image.tar
+👉 **[http://localhost:7888](http://localhost:7888)**
 
-docker run --rm -v $(pwd):/workspace -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --input /workspace/image.tar --format json --output /workspace/trivy-image-report.json
-mv trivy-image-report.json dashboard/data/
-```
+### Ejecución Manual (Opcional)
 
-### 2. Visualizar Dashboard
-
-Simplemente abre el archivo `dashboard/index.html` en tu navegador favorito.
+Si deseas levantar el dashboard manualmente sin ejecutar todo el pipeline (asumiendo que ya tienes los datos en `dashboard/data`):
 
 ```bash
-# Ejemplo en Linux
-xdg-open dashboard/index.html
+docker-compose up -d dashboard
 ```
