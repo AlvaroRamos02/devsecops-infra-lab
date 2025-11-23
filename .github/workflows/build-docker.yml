@@ -23,27 +23,6 @@ jobs:
             --json \
             --output=semgrep-report.json
 
-      - name: Upload Semgrep results to DefectDojo
-        continue-on-error: true
-        env:
-          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
-          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-          DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
-        run: |
-          if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
-            echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
-          else
-            echo "Subiendo Semgrep a DefectDojo..."
-            curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
-              -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
-              -F "scan_type=Semgrep JSON Report" \
-              -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
-              -F "product_name=DevSecOps Lab" \
-              -F "file=@semgrep-report.json" \
-              -F "active=true" \
-              -F "verified=false" || echo "Error al subir Semgrep."
-          fi
-
       #########################################
       # 2) SCA a nivel de repositorio (Trivy FS)
       #########################################
@@ -54,27 +33,6 @@ jobs:
             aquasec/trivy fs /src \
             --format json \
             --output trivy-fs-report.json
-
-      - name: Upload Trivy FS results to DefectDojo
-        continue-on-error: true
-        env:
-          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
-          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-          DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
-        run: |
-          if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
-            echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
-          else
-            echo "Subiendo Trivy FS a DefectDojo..."
-            curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
-              -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
-              -F "scan_type=Trivy Scan" \
-              -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
-              -F "product_name=DevSecOps Lab" \
-              -F "file=@trivy-fs-report.json" \
-              -F "active=true" \
-              -F "verified=false" || echo "Error al subir Trivy FS."
-          fi
 
       #########################################
       # 3) Build Docker
@@ -100,23 +58,18 @@ jobs:
             --format json \
             --output /workspace/trivy-image-report.json
 
-      - name: Upload Trivy Image results to DefectDojo
-        continue-on-error: true
-        env:
-          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
-          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-          DEFECTDOJO_ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+      #########################################
+      # 5) Generate Security Dashboard
+      #########################################
+      - name: Prepare Dashboard Data
         run: |
-          if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
-            echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
-          else
-            echo "Subiendo Trivy Image a DefectDojo..."
-            curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
-              -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
-              -F "scan_type=Trivy Scan" \
-              -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
-              -F "product_name=DevSecOps Lab" \
-              -F "file=@trivy-image-report.json" \
-              -F "active=true" \
-              -F "verified=false" || echo "Error al subir Trivy Image."
-          fi
+          mkdir -p dashboard/data
+          mv semgrep-report.json dashboard/data/
+          mv trivy-fs-report.json dashboard/data/
+          mv trivy-image-report.json dashboard/data/
+
+      - name: Upload Security Dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-dashboard
+          path: dashboard/

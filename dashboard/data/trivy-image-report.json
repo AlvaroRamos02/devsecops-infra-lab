@@ -1,0 +1,17 @@
+{
+    "Results": [
+        {
+            "Target": "myapp:latest (alpine 3.14)",
+            "Vulnerabilities": [
+                {
+                    "VulnerabilityID": "CVE-2023-9999",
+                    "PkgName": "openssl",
+                    "InstalledVersion": "1.1.1k",
+                    "FixedVersion": "1.1.1l",
+                    "Severity": "MEDIUM",
+                    "Title": "Buffer overflow in OpenSSL"
+                }
+            ]
+        }
+    ]
+}
