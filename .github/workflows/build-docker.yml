@@ -1,22 +1,20 @@
-name: CI - SAST + SCA (FS & Image) + Build Docker
+name: CI - DevSecOps Pipeline
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-
-  #########################################
-  # 1) SAST (Semgrep)
-  #########################################
-  sast:
+  devsecops-pipeline:
     runs-on: self-hosted
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Run Semgrep (SAST) and generate JSON report
+      #########################################
+      # 1) SAST (Semgrep)
+      #########################################
+      - name: Run Semgrep (SAST)
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/src \
@@ -35,32 +33,21 @@ jobs:
           if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
             echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
           else
-            echo "DEFECTDOJO_ENGAGEMENT_ID is set (length: ${#DEFECTDOJO_ENGAGEMENT_ID})"
+            echo "Subiendo Semgrep a DefectDojo..."
+            curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+              -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
+              -F "scan_type=Semgrep JSON Report" \
+              -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+              -F "product_name=DevSecOps Lab" \
+              -F "file=@semgrep-report.json" \
+              -F "active=true" \
+              -F "verified=false" || echo "Error al subir Semgrep."
           fi
-          
-          echo "Subiendo Semgrep a DefectDojo..."
-          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
-            -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
-            -F "scan_type=Semgrep JSON Report" \
-            -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
-            -F "product_name=DevSecOps Lab" \
-            -F "file=@semgrep-report.json" \
-            -F "active=true" \
-            -F "verified=false" || echo "Error al subir Semgrep."
 
-
-  #########################################
-  # 2) SCA a nivel de repositorio (Trivy FS)
-  #########################################
-  sca_fs:
-    runs-on: self-hosted
-    needs: sast
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Run Trivy FS scan (SCA repo) and generate JSON report
+      #########################################
+      # 2) SCA a nivel de repositorio (Trivy FS)
+      #########################################
+      - name: Run Trivy FS scan (SCA repo)
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/src \
@@ -78,31 +65,20 @@ jobs:
           if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
             echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
           else
-            echo "DEFECTDOJO_ENGAGEMENT_ID is set (length: ${#DEFECTDOJO_ENGAGEMENT_ID})"
+            echo "Subiendo Trivy FS a DefectDojo..."
+            curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+              -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
+              -F "scan_type=Trivy Scan" \
+              -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+              -F "product_name=DevSecOps Lab" \
+              -F "file=@trivy-fs-report.json" \
+              -F "active=true" \
+              -F "verified=false" || echo "Error al subir Trivy FS."
           fi
 
-          echo "Subiendo Trivy FS a DefectDojo..."
-          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
-            -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
-            -F "scan_type=Trivy Scan" \
-            -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
-            -F "product_name=DevSecOps Lab" \
-            -F "file=@trivy-fs-report.json" \
-            -F "active=true" \
-            -F "verified=false" || echo "Error al subir Trivy FS."
-
-
-  #########################################
-  # 3) Build Docker
-  #########################################
-  build:
-    runs-on: self-hosted
-    needs: [sast, sca_fs]
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
+      #########################################
+      # 3) Build Docker
+      #########################################
       - name: Build Docker image
         run: |
           docker build -t myapp:latest .
@@ -111,22 +87,18 @@ jobs:
         run: |
           docker save myapp:latest -o image.tar
 
-
-  #########################################
-  # 4) SCA de la imagen (Trivy Image)
-  #########################################
-  sca_image:
-    runs-on: self-hosted
-    needs: build
-
-    steps:
-      - name: Run Trivy on Docker image and generate JSON report
+      #########################################
+      # 4) SCA de la imagen (Trivy Image)
+      #########################################
+      - name: Run Trivy on Docker image
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}/image.tar:/image.tar \
-            aquasec/trivy image --input /image.tar \
+            -v ${{ github.workspace }}:/workspace \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image \
+            --input /workspace/image.tar \
             --format json \
-            --output trivy-image-report.json
+            --output /workspace/trivy-image-report.json
 
       - name: Upload Trivy Image results to DefectDojo
         continue-on-error: true
@@ -138,15 +110,13 @@ jobs:
           if [ -z "$DEFECTDOJO_ENGAGEMENT_ID" ]; then
             echo "::error::DEFECTDOJO_ENGAGEMENT_ID is not set or empty!"
           else
-            echo "DEFECTDOJO_ENGAGEMENT_ID is set (length: ${#DEFECTDOJO_ENGAGEMENT_ID})"
+            echo "Subiendo Trivy Image a DefectDojo..."
+            curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
+              -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
+              -F "scan_type=Trivy Scan" \
+              -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+              -F "product_name=DevSecOps Lab" \
+              -F "file=@trivy-image-report.json" \
+              -F "active=true" \
+              -F "verified=false" || echo "Error al subir Trivy Image."
           fi
-
-          echo "Subiendo Trivy Image a DefectDojo..."
-          curl -sS -X POST "${DEFECTDOJO_URL%/}/api/v2/import-scan/" \
-            -H "Authorization: Token ${DEFECTDOJO_API_KEY}" \
-            -F "scan_type=Trivy Scan" \
-            -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
-            -F "product_name=DevSecOps Lab" \
-            -F "file=@trivy-image-report.json" \
-            -F "active=true" \
-            -F "verified=false" || echo "Error al subir Trivy Image."
