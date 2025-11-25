@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,13 +11,16 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
     <div class="app-container">
         <header class="glass-header">
             <div class="logo-area">
                 <div class="logo-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                        <path fill-rule="evenodd" d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.352-.272-2.636-.759-3.808a.75.75 0 00-.722-.515 11.208 11.208 0 01-7.877-3.08zM12 17.25a5.25 5.25 0 110-10.5 5.25 5.25 0 010 10.5z" clip-rule="evenodd" />
+                        <path fill-rule="evenodd"
+                            d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.352-.272-2.636-.759-3.808a.75.75 0 00-.722-.515 11.208 11.208 0 01-7.877-3.08zM12 17.25a5.25 5.25 0 110-10.5 5.25 5.25 0 010 10.5z"
+                            clip-rule="evenodd" />
                     </svg>
                 </div>
                 <h1>Security Dashboard</h1>
@@ -38,17 +42,23 @@
                 <div class="card summary-card critical-vulns">
                     <h3>Critical</h3>
                     <div class="big-number critical-color" id="critical-count">0</div>
-                    <div class="progress-bar-bg"><div class="progress-bar-fill critical-bg" style="width: 0%"></div></div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill critical-bg" style="width: 0%"></div>
+                    </div>
                 </div>
                 <div class="card summary-card high-vulns">
                     <h3>High</h3>
                     <div class="big-number high-color" id="high-count">0</div>
-                    <div class="progress-bar-bg"><div class="progress-bar-fill high-bg" style="width: 0%"></div></div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill high-bg" style="width: 0%"></div>
+                    </div>
                 </div>
                 <div class="card summary-card medium-vulns">
                     <h3>Medium</h3>
                     <div class="big-number medium-color" id="medium-count">0</div>
-                    <div class="progress-bar-bg"><div class="progress-bar-fill medium-bg" style="width: 0%"></div></div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill medium-bg" style="width: 0%"></div>
+                    </div>
                 </div>
             </section>
 
@@ -81,7 +91,8 @@
                         <div class="table-header">
                             <h2>Static Application Security Testing</h2>
                             <div class="table-actions">
-                                <input type="text" placeholder="Search findings..." class="search-input" onkeyup="filterTable('sast-table', this.value)">
+                                <input type="text" placeholder="Search findings..." class="search-input"
+                                    onkeyup="filterTable('sast-table', this.value)">
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -89,8 +100,10 @@
                                 <thead>
                                     <tr>
                                         <th>Severity</th>
+                                        <th>Rule Type</th>
                                         <th>ID / Rule</th>
                                         <th>Message</th>
+                                        <th>CWE/OWASP</th>
                                         <th>Location</th>
                                     </tr>
                                 </thead>
@@ -105,7 +118,8 @@
                         <div class="table-header">
                             <h2>SCA - Repository Dependencies</h2>
                             <div class="table-actions">
-                                <input type="text" placeholder="Search findings..." class="search-input" onkeyup="filterTable('sca-fs-table', this.value)">
+                                <input type="text" placeholder="Search findings..." class="search-input"
+                                    onkeyup="filterTable('sca-fs-table', this.value)">
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -130,7 +144,8 @@
                         <div class="table-header">
                             <h2>SCA - Container Image</h2>
                             <div class="table-actions">
-                                <input type="text" placeholder="Search findings..." class="search-input" onkeyup="filterTable('sca-image-table', this.value)">
+                                <input type="text" placeholder="Search findings..." class="search-input"
+                                    onkeyup="filterTable('sca-image-table', this.value)">
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -156,4 +171,5 @@
     </div>
     <script src="script.js"></script>
 </body>
+
 </html>

@@ -27,14 +27,36 @@ function processData(semgrep, trivyFs, trivyImage) {
 
 function processSemgrep(data) {
     if (!data.results) return [];
-    return data.results.map(item => ({
-        type: 'SAST',
-        severity: item.extra.severity || 'UNKNOWN',
-        id: item.check_id,
-        message: item.extra.message,
-        location: `${item.path}:${item.start.line}`,
-        raw: item
-    }));
+    return data.results.map(item => {
+        const metadata = item.extra.metadata || {};
+
+        // Try to infer category from check_id if metadata is missing
+        let category = metadata.category || 'Security';
+        if (!metadata.category && item.check_id) {
+            const parts = item.check_id.split('.');
+            if (parts.length > 2) {
+                // e.g. javascript.express.security.injection.tainted-sql-string -> injection
+                // This is a heuristic
+                category = parts.find(p => ['injection', 'xss', 'cryptography', 'auth', 'audit'].includes(p)) || 'Security';
+            }
+        }
+
+        // Format CWE/OWASP
+        let cwe = metadata.cwe ? (Array.isArray(metadata.cwe) ? metadata.cwe.join(', ') : metadata.cwe) : '';
+        let owasp = metadata.owasp ? (Array.isArray(metadata.owasp) ? metadata.owasp.join(', ') : metadata.owasp) : '';
+        let standards = [cwe, owasp].filter(Boolean).join('<br>');
+
+        return {
+            type: 'SAST',
+            severity: item.extra.severity || 'UNKNOWN',
+            id: item.check_id,
+            message: item.extra.message,
+            location: `${item.path}:${item.start.line}`,
+            category: category,
+            standards: standards || 'N/A',
+            raw: item
+        };
+    });
 }
 
 function processTrivy(data) {
@@ -162,8 +184,10 @@ function renderTables(findings) {
     sastTbody.innerHTML = findings.sast.map(f => `
         <tr>
             <td><span class="severity-badge ${f.severity.toLowerCase()}">${f.severity}</span></td>
+            <td><span class="category-badge">${f.category}</span></td>
             <td><code>${f.id}</code></td>
             <td>${f.message}</td>
+            <td><small>${f.standards}</small></td>
             <td><code>${f.location}</code></td>
         </tr>
     `).join('');

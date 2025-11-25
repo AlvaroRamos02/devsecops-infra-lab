@@ -5,16 +5,14 @@ on:
     branches: [ "main" ]
 
 jobs:
-  devsecops-pipeline:
+  sast:
+    name: SAST (Semgrep)
     runs-on: self-hosted
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      #########################################
-      # 1) SAST (Semgrep)
-      #########################################
-      - name: Run Semgrep (SAST)
+      - name: Run Semgrep
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/src \
@@ -23,10 +21,20 @@ jobs:
             --json \
             --output=/src/semgrep-report.json
 
-      #########################################
-      # 2) SCA a nivel de repositorio (Trivy FS)
-      #########################################
-      - name: Run Trivy FS scan (SCA repo)
+      - name: Upload SAST Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+
+  sca-fs:
+    name: SCA Repo (Trivy FS)
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run Trivy FS
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/src \
@@ -34,21 +42,44 @@ jobs:
             --format json \
             --output /src/trivy-fs-report.json
 
-      #########################################
-      # 3) Build Docker
-      #########################################
+      - name: Upload SCA FS Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-report
+          path: trivy-fs-report.json
+
+  build:
+    name: Build Docker Image
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Build Docker image
         run: |
           docker build -t myapp:latest .
 
-      - name: Save Docker image as tar
+      - name: Save Docker image
         run: |
           docker save myapp:latest -o image.tar
 
-      #########################################
-      # 4) SCA de la imagen (Trivy Image)
-      #########################################
-      - name: Run Trivy on Docker image
+      - name: Upload Docker Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: image.tar
+
+  sca-image:
+    name: SCA Image (Trivy Image)
+    runs-on: self-hosted
+    needs: build
+    steps:
+      - name: Download Docker Image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Run Trivy on Image
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -58,15 +89,37 @@ jobs:
             --format json \
             --output /workspace/trivy-image-report.json
 
-      #########################################
-      # 5) Generate Security Dashboard
-      #########################################
-      - name: Prepare Dashboard Data
-        run: |
-          mkdir -p dashboard/data
-          mv semgrep-report.json dashboard/data/
-          mv trivy-fs-report.json dashboard/data/
-          mv trivy-image-report.json dashboard/data/
+      - name: Upload SCA Image Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-report
+          path: trivy-image-report.json
+
+  dashboard:
+    name: Security Dashboard
+    runs-on: self-hosted
+    needs: [sast, sca-fs, sca-image]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download SAST Report
+        uses: actions/download-artifact@v4
+        with:
+          name: semgrep-report
+          path: dashboard/data/
+
+      - name: Download SCA FS Report
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-fs-report
+          path: dashboard/data/
+
+      - name: Download SCA Image Report
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-image-report
+          path: dashboard/data/
 
       - name: Upload Security Dashboard
         uses: actions/upload-artifact@v4
