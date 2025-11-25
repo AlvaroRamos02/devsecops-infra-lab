@@ -23,9 +23,17 @@
                             clip-rule="evenodd" />
                     </svg>
                 </div>
-                <h1>Security Dashboard</h1>
+                <h1>Security Dashboard <span class="beta-tag">PRO</span></h1>
             </div>
             <div class="scan-info">
+                <button class="btn-secondary" onclick="exportData()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Export CSV
+                </button>
                 <span id="scan-date">Loading date...</span>
                 <div class="status-badge success">Pipeline Passed</div>
             </div>
@@ -80,10 +88,19 @@
 
             <!-- Detailed Findings Section -->
             <section class="details-section">
-                <div class="tabs">
-                    <button class="tab-btn active" onclick="switchTab('sast')">SAST (Semgrep)</button>
-                    <button class="tab-btn" onclick="switchTab('sca-fs')">SCA Repo (Trivy FS)</button>
-                    <button class="tab-btn" onclick="switchTab('sca-image')">SCA Image (Trivy Image)</button>
+                <div class="tabs-header">
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="switchTab('sast')">SAST (Semgrep)</button>
+                        <button class="tab-btn" onclick="switchTab('sca-fs')">SCA Repo (Trivy FS)</button>
+                        <button class="tab-btn" onclick="switchTab('sca-image')">SCA Image (Trivy Image)</button>
+                    </div>
+                    <div class="global-actions">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="show-dismissed" onchange="toggleDismissed()">
+                            <span class="slider"></span>
+                            <span class="label-text">Show Dismissed</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="card table-card">
@@ -112,6 +129,7 @@
                                         <th>Message</th>
                                         <th>CWE/OWASP</th>
                                         <th>Location</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sast-tbody">
@@ -143,11 +161,12 @@
                             <table id="sca-fs-table">
                                 <thead>
                                     <tr>
-                                        <th class="sortable" onclick="sortData('scaFs', 'severity')">Severity ↕</th>
+                                        <th class="sortable" onclick="sortData('scaFs', 'severity')">Highest Severity ↕
+                                        </th>
                                         <th class="sortable" onclick="sortData('scaFs', 'package')">Package ↕</th>
-                                        <th>Installed</th>
-                                        <th>Fixed In</th>
-                                        <th class="sortable" onclick="sortData('scaFs', 'id')">Vulnerability ID ↕</th>
+                                        <th>Installed Version</th>
+                                        <th>Vulnerabilities</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sca-fs-tbody">
@@ -179,12 +198,12 @@
                             <table id="sca-image-table">
                                 <thead>
                                     <tr>
-                                        <th class="sortable" onclick="sortData('scaImage', 'severity')">Severity ↕</th>
+                                        <th class="sortable" onclick="sortData('scaImage', 'severity')">Highest Severity
+                                            ↕</th>
                                         <th class="sortable" onclick="sortData('scaImage', 'package')">Package ↕</th>
-                                        <th>Installed</th>
-                                        <th>Fixed In</th>
-                                        <th class="sortable" onclick="sortData('scaImage', 'id')">Vulnerability ID ↕
-                                        </th>
+                                        <th>Installed Version</th>
+                                        <th>Vulnerabilities</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sca-image-tbody">
@@ -199,6 +218,18 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- Slide-over Drawer -->
+    <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+    <div id="details-drawer" class="details-drawer">
+        <div class="drawer-header">
+            <h2 id="drawer-title">Vulnerability Details</h2>
+            <button class="close-btn" onclick="closeDrawer()">&times;</button>
+        </div>
+        <div class="drawer-content" id="drawer-content">
+            <!-- Populated by JS -->
+        </div>
     </div>
     <script src="script.js"></script>
 </body>

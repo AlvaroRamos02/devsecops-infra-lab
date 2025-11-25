@@ -2,7 +2,9 @@
 const state = {
     sast: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
     scaFs: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
-    scaImage: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } }
+    scaImage: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
+    dismissed: JSON.parse(localStorage.getItem('dismissedFindings') || '[]'),
+    showDismissed: false
 };
 
 const SEVERITY_WEIGHTS = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'UNKNOWN': 0 };
@@ -15,22 +17,21 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('data/trivy-fs-report.json').then(res => res.ok ? res.json() : { Results: [] }).catch(() => ({ Results: [] })),
         fetch('data/trivy-image-report.json').then(res => res.ok ? res.json() : { Results: [] }).catch(() => ({ Results: [] }))
     ]).then(([semgrepData, trivyFsData, trivyImageData]) => {
-        // Process and store data
         state.sast.data = processSemgrep(semgrepData);
         state.scaFs.data = processTrivy(trivyFsData);
         state.scaImage.data = processTrivy(trivyImageData);
 
-        // Initial filter (all)
         applyFilters('sast');
         applyFilters('scaFs');
         applyFilters('scaImage');
 
-        // Update summary and charts with ALL data
         const allFindings = [...state.sast.data, ...state.scaFs.data, ...state.scaImage.data];
         updateSummary(allFindings);
         renderCharts(allFindings);
     });
 });
+
+// --- Data Processing ---
 
 function normalizeSeverity(severity) {
     const s = (severity || 'UNKNOWN').toUpperCase();
@@ -42,7 +43,7 @@ function normalizeSeverity(severity) {
 
 function processSemgrep(data) {
     if (!data.results) return [];
-    return data.results.map(item => {
+    return data.results.map((item, index) => {
         const metadata = item.extra.metadata || {};
         let category = metadata.category || 'Security';
         if (!metadata.category && item.check_id) {
@@ -51,18 +52,18 @@ function processSemgrep(data) {
                 category = parts.find(p => ['injection', 'xss', 'cryptography', 'auth', 'audit'].includes(p)) || 'Security';
             }
         }
-        let cwe = metadata.cwe ? (Array.isArray(metadata.cwe) ? metadata.cwe.join(', ') : metadata.cwe) : '';
-        let owasp = metadata.owasp ? (Array.isArray(metadata.owasp) ? metadata.owasp.join(', ') : metadata.owasp) : '';
-        let standards = [cwe, owasp].filter(Boolean).join('<br>');
 
         return {
+            uuid: `sast-${index}`,
             type: 'SAST',
             severity: normalizeSeverity(item.extra.severity),
             id: item.check_id,
             message: item.extra.message,
             location: `${item.path}:${item.start.line}`,
             category: category,
-            standards: standards || 'N/A',
+            cwe: metadata.cwe || [],
+            owasp: metadata.owasp || [],
+            code: item.extra.lines,
             raw: item
         };
     });
@@ -71,10 +72,12 @@ function processSemgrep(data) {
 function processTrivy(data) {
     if (!data.Results) return [];
     let vulnerabilities = [];
+    let idx = 0;
     data.Results.forEach(target => {
         if (target.Vulnerabilities) {
             target.Vulnerabilities.forEach(vuln => {
                 vulnerabilities.push({
+                    uuid: `sca-${idx++}`,
                     type: 'SCA',
                     severity: normalizeSeverity(vuln.Severity),
                     id: vuln.VulnerabilityID,
@@ -90,6 +93,31 @@ function processTrivy(data) {
     return vulnerabilities;
 }
 
+// --- Grouping Logic for SCA ---
+function groupScaFindings(findings) {
+    const groups = {};
+    findings.forEach(f => {
+        if (!groups[f.package]) {
+            groups[f.package] = {
+                package: f.package,
+                installed: f.installed,
+                findings: [],
+                maxSeverityVal: -1,
+                maxSeverity: 'UNKNOWN'
+            };
+        }
+        groups[f.package].findings.push(f);
+        const weight = SEVERITY_WEIGHTS[f.severity];
+        if (weight > groups[f.package].maxSeverityVal) {
+            groups[f.package].maxSeverityVal = weight;
+            groups[f.package].maxSeverity = f.severity;
+        }
+    });
+    return Object.values(groups);
+}
+
+// --- Filtering & Sorting ---
+
 function applyFilters(type) {
     const s = state[type];
     const container = document.getElementById(`${type === 'scaFs' ? 'sca-fs' : (type === 'scaImage' ? 'sca-image' : 'sast')}-view`);
@@ -97,6 +125,8 @@ function applyFilters(type) {
     const searchFilter = container.querySelector('.search-input').value.toLowerCase();
 
     s.filtered = s.data.filter(item => {
+        if (!state.showDismissed && state.dismissed.includes(item.uuid)) return false;
+
         const matchesSeverity = !severityFilter || item.severity === severityFilter;
         const matchesSearch = !searchFilter ||
             item.id.toLowerCase().includes(searchFilter) ||
@@ -105,7 +135,6 @@ function applyFilters(type) {
         return matchesSeverity && matchesSearch;
     });
 
-    // Reset to page 1 on filter change
     s.page = 1;
     sortAndRender(type);
 }
@@ -126,66 +155,136 @@ function sortAndRender(type) {
     const col = s.sort.col;
     const asc = s.sort.asc;
 
-    s.filtered.sort((a, b) => {
-        let valA = a[col];
-        let valB = b[col];
-
-        if (col === 'severity') {
-            valA = SEVERITY_WEIGHTS[valA] || 0;
-            valB = SEVERITY_WEIGHTS[valB] || 0;
-        }
-
-        if (valA < valB) return asc ? -1 : 1;
-        if (valA > valB) return asc ? 1 : -1;
-        return 0;
-    });
+    if (type === 'sast') {
+        s.filtered.sort((a, b) => compare(a, b, col, asc));
+    }
+    // For SCA, grouping happens at render time, but we need to sort the groups.
+    // We'll handle SCA sorting inside renderTable to keep it simple.
 
     renderTable(type);
     renderPagination(type);
 }
 
+function compare(a, b, col, asc) {
+    let valA = a[col];
+    let valB = b[col];
+
+    if (col === 'severity') {
+        valA = SEVERITY_WEIGHTS[valA] || 0;
+        valB = SEVERITY_WEIGHTS[valB] || 0;
+    }
+
+    if (valA < valB) return asc ? -1 : 1;
+    if (valA > valB) return asc ? 1 : -1;
+    return 0;
+}
+
+// --- Rendering ---
+
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return unsafe;
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function renderTable(type) {
     const s = state[type];
-    const start = (s.page - 1) * s.pageSize;
-    const end = start + s.pageSize;
-    const pageData = s.filtered.slice(start, end);
-
     const tbodyId = type === 'scaFs' ? 'sca-fs-tbody' : (type === 'scaImage' ? 'sca-image-tbody' : 'sast-tbody');
     const tbody = document.getElementById(tbodyId);
 
     if (type === 'sast') {
+        const start = (s.page - 1) * s.pageSize;
+        const end = start + s.pageSize;
+        const pageData = s.filtered.slice(start, end);
+
         tbody.innerHTML = pageData.map(f => `
-            <tr>
+            <tr onclick="openDrawer('${f.uuid}')" style="cursor: pointer;">
                 <td><span class="severity-badge ${f.severity.toLowerCase()}">${f.severity}</span></td>
                 <td><span class="category-badge">${f.category}</span></td>
-                <td><code>${f.id}</code></td>
-                <td>${f.message}</td>
-                <td><small>${f.standards}</small></td>
-                <td><code>${f.location}</code></td>
+                <td><code>${escapeHtml(f.id)}</code></td>
+                <td>${escapeHtml(f.message)}</td>
+                <td>
+                    ${(Array.isArray(f.cwe) ? f.cwe : [f.cwe]).filter(Boolean).map(c => `<span class="tag cwe">${c}</span>`).join('')}
+                    ${(Array.isArray(f.owasp) ? f.owasp : [f.owasp]).filter(Boolean).map(o => `<span class="tag owasp">${o}</span>`).join('')}
+                </td>
+                <td><code>${escapeHtml(f.location)}</code></td>
+                <td>
+                    <button class="action-btn dismiss" onclick="event.stopPropagation(); toggleDismiss('${f.uuid}')">
+                        ${state.dismissed.includes(f.uuid) ? 'Restore' : 'Dismiss'}
+                    </button>
+                </td>
             </tr>
         `).join('');
     } else {
-        tbody.innerHTML = pageData.map(f => `
-            <tr>
-                <td><span class="severity-badge ${f.severity.toLowerCase()}">${f.severity}</span></td>
-                <td>${f.package}</td>
-                <td>${f.installed}</td>
-                <td>${f.fixed}</td>
-                <td><code>${f.id}</code></td>
+        // SCA Grouping
+        const groups = groupScaFindings(s.filtered);
+        // Sort groups
+        const col = s.sort.col;
+        const asc = s.sort.asc;
+        groups.sort((a, b) => {
+            if (col === 'severity') return compare({ severity: a.maxSeverity }, { severity: b.maxSeverity }, 'severity', asc);
+            if (col === 'package') return compare(a, b, 'package', asc);
+            return 0;
+        });
+
+        const start = (s.page - 1) * s.pageSize;
+        const end = start + s.pageSize;
+        const pageGroups = groups.slice(start, end);
+
+        tbody.innerHTML = pageGroups.map(g => {
+            const groupId = `group-${g.package.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            return `
+            <tr class="group-header" onclick="toggleGroup('${groupId}', this)">
+                <td><span class="severity-badge ${g.maxSeverity.toLowerCase()}">${g.maxSeverity}</span></td>
+                <td>
+                    <span class="group-expand-icon">▶</span> 
+                    <strong>${escapeHtml(g.package)}</strong>
+                </td>
+                <td>${escapeHtml(g.installed)}</td>
+                <td>${g.findings.length} vulnerabilities</td>
+                <td></td>
             </tr>
-        `).join('');
+            ${g.findings.map(f => `
+                <tr class="child-row ${groupId}" onclick="openDrawer('${f.uuid}')" style="cursor: pointer;">
+                    <td></td>
+                    <td><span class="severity-badge ${f.severity.toLowerCase()}" style="transform: scale(0.9);">${f.severity}</span></td>
+                    <td><code>${escapeHtml(f.id)}</code></td>
+                    <td>${escapeHtml(f.fixed)}</td>
+                    <td>
+                        <button class="action-btn dismiss" onclick="event.stopPropagation(); toggleDismiss('${f.uuid}')">
+                            ${state.dismissed.includes(f.uuid) ? 'Restore' : 'Dismiss'}
+                        </button>
+                    </td>
+                </tr>
+            `).join('')}
+            `;
+        }).join('');
     }
+}
+
+function toggleGroup(groupId, header) {
+    header.classList.toggle('expanded');
+    document.querySelectorAll(`.${groupId}`).forEach(row => {
+        row.classList.toggle('visible');
+    });
 }
 
 function renderPagination(type) {
     const s = state[type];
-    const totalPages = Math.ceil(s.filtered.length / s.pageSize);
+    // For SCA we paginate GROUPS, for SAST we paginate ITEMS
+    const totalItems = type === 'sast' ? s.filtered.length : groupScaFindings(s.filtered).length;
+    const totalPages = Math.ceil(totalItems / s.pageSize);
+
     const containerId = type === 'scaFs' ? 'sca-fs-pagination' : (type === 'scaImage' ? 'sca-image-pagination' : 'sast-pagination');
     const container = document.getElementById(containerId);
 
     container.innerHTML = `
         <button ${s.page === 1 ? 'disabled' : ''} onclick="changePage('${type}', -1)">Previous</button>
-        <span>Page ${s.page} of ${totalPages || 1} (${s.filtered.length} items)</span>
+        <span>Page ${s.page} of ${totalPages || 1} (${totalItems} items)</span>
         <button ${s.page === totalPages || totalPages === 0 ? 'disabled' : ''} onclick="changePage('${type}', 1)">Next</button>
         <select onchange="changePageSize('${type}', this.value)" style="margin-left: 10px; padding: 4px;">
             <option value="5" ${s.pageSize === 5 ? 'selected' : ''}>5 / page</option>
@@ -209,15 +308,133 @@ function changePageSize(type, size) {
     renderPagination(type);
 }
 
+// --- Drawer & Details ---
+
+function openDrawer(uuid) {
+    const allFindings = [...state.sast.data, ...state.scaFs.data, ...state.scaImage.data];
+    const finding = allFindings.find(f => f.uuid === uuid);
+    if (!finding) return;
+
+    const content = document.getElementById('drawer-content');
+
+    let detailsHtml = `
+        <div style="margin-bottom: 1rem;">
+            <span class="severity-badge ${finding.severity.toLowerCase()}">${finding.severity}</span>
+            <span class="category-badge">${finding.type}</span>
+        </div>
+        <h3>${escapeHtml(finding.message)}</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">ID: <code>${finding.id}</code></p>
+    `;
+
+    if (finding.type === 'SAST') {
+        detailsHtml += `
+            <h4>Location</h4>
+            <p><code>${escapeHtml(finding.location)}</code></p>
+            
+            <h4>Code Snippet</h4>
+            <div class="code-block">
+                ${finding.code ? `<span class="code-line highlight">${escapeHtml(finding.code)}</span>` : '<span class="code-line">// Code snippet not available</span>'}
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <h4>Standards</h4>
+                ${(Array.isArray(finding.cwe) ? finding.cwe : [finding.cwe]).filter(Boolean).map(c => `<span class="tag cwe">${c}</span>`).join('')}
+                ${(Array.isArray(finding.owasp) ? finding.owasp : [finding.owasp]).filter(Boolean).map(o => `<span class="tag owasp">${o}</span>`).join('')}
+            </div>
+        `;
+    } else {
+        detailsHtml += `
+            <h4>Package Details</h4>
+            <p>Package: <strong>${escapeHtml(finding.package)}</strong></p>
+            <p>Installed Version: <code>${escapeHtml(finding.installed)}</code></p>
+            <p>Fixed Version: <code style="color: #4ade80">${escapeHtml(finding.fixed)}</code></p>
+            
+            <h4>Description</h4>
+            <p>${escapeHtml(finding.raw.Description || 'No description available.')}</p>
+            
+            <h4>References</h4>
+            <ul>
+                ${(finding.raw.References || []).slice(0, 3).map(url => `<li><a href="${url}" target="_blank" style="color: var(--accent-color)">${url}</a></li>`).join('')}
+            </ul>
+        `;
+    }
+
+    content.innerHTML = detailsHtml;
+    document.getElementById('details-drawer').classList.add('open');
+    document.getElementById('drawer-overlay').classList.add('open');
+}
+
+function closeDrawer() {
+    document.getElementById('details-drawer').classList.remove('open');
+    document.getElementById('drawer-overlay').classList.remove('open');
+}
+
+// --- Actions ---
+
+function toggleDismiss(uuid) {
+    if (state.dismissed.includes(uuid)) {
+        state.dismissed = state.dismissed.filter(id => id !== uuid);
+    } else {
+        state.dismissed.push(uuid);
+    }
+    localStorage.setItem('dismissedFindings', JSON.stringify(state.dismissed));
+
+    // Re-apply filters to update view
+    applyFilters('sast');
+    applyFilters('scaFs');
+    applyFilters('scaImage');
+}
+
+function toggleDismissed() {
+    state.showDismissed = document.getElementById('show-dismissed').checked;
+    applyFilters('sast');
+    applyFilters('scaFs');
+    applyFilters('scaImage');
+}
+
+function exportData() {
+    const allFiltered = [
+        ...state.sast.filtered,
+        ...state.scaFs.filtered,
+        ...state.scaImage.filtered
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8,"
+        + "Type,Severity,ID,Message,Package,Location\n"
+        + allFiltered.map(f => {
+            return [
+                f.type,
+                f.severity,
+                f.id,
+                `"${(f.message || '').replace(/"/g, '""')}"`,
+                f.package || 'N/A',
+                f.location || 'N/A'
+            ].join(",");
+        }).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "security_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// --- Utils ---
 function updateSummary(findings) {
+    // Count only non-dismissed for summary unless showDismissed is true? 
+    // Usually summary shows active risks.
+    const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
+
     const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
-    findings.forEach(f => {
-        const sev = f.severity; // Already normalized
+    activeFindings.forEach(f => {
+        const sev = f.severity;
         if (counts[sev] !== undefined) counts[sev]++;
         else counts.UNKNOWN++;
     });
 
-    const total = findings.length;
+    const total = activeFindings.length;
     document.getElementById('total-count').textContent = total;
     document.getElementById('critical-count').textContent = counts.CRITICAL;
     document.getElementById('high-count').textContent = counts.HIGH;
@@ -234,10 +451,13 @@ function updateSummary(findings) {
 }
 
 function renderCharts(findings) {
+    // Same logic, use active findings
+    const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
+
     const severityCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
     const sourceCounts = { SAST: 0, SCA: 0 };
 
-    findings.forEach(f => {
+    activeFindings.forEach(f => {
         const sev = f.severity;
         if (severityCounts[sev] !== undefined) severityCounts[sev]++;
         else severityCounts.UNKNOWN++;
@@ -247,6 +467,14 @@ function renderCharts(findings) {
     });
 
     // Severity Chart
+    // Note: In a real app we would destroy the old chart instance. 
+    // For simplicity here we just create new ones, which might overlay.
+    // A robust solution would store chart instances in `state` and call .destroy().
+
+    // Simple hack: clear canvas container
+    const sevContainer = document.getElementById('severityChart').parentNode;
+    sevContainer.innerHTML = '<canvas id="severityChart"></canvas>';
+
     new Chart(document.getElementById('severityChart'), {
         type: 'doughnut',
         data: {
@@ -271,6 +499,9 @@ function renderCharts(findings) {
             }
         }
     });
+
+    const sourceContainer = document.getElementById('sourceChart').parentNode;
+    sourceContainer.innerHTML = '<canvas id="sourceChart"></canvas>';
 
     // Source Chart
     new Chart(document.getElementById('sourceChart'), {
