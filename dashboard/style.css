@@ -348,6 +348,74 @@ tr:hover td {
     border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
+/* Filter Controls */
+.filter-select {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+}
+
+.filter-select:focus {
+    border-color: var(--accent-color);
+}
+
+/* Sortable Headers */
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+th.sortable:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 1rem;
+    gap: 1rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.pagination-controls button {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-controls select {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 4px;
+    outline: none;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;

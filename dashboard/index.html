@@ -91,17 +91,24 @@
                         <div class="table-header">
                             <h2>Static Application Security Testing</h2>
                             <div class="table-actions">
+                                <select class="filter-select" onchange="applyFilters('sast')">
+                                    <option value="">All Severities</option>
+                                    <option value="CRITICAL">Critical</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="LOW">Low</option>
+                                </select>
                                 <input type="text" placeholder="Search findings..." class="search-input"
-                                    onkeyup="filterTable('sast-table', this.value)">
+                                    onkeyup="applyFilters('sast')">
                             </div>
                         </div>
                         <div class="table-responsive">
                             <table id="sast-table">
                                 <thead>
                                     <tr>
-                                        <th>Severity</th>
-                                        <th>Rule Type</th>
-                                        <th>ID / Rule</th>
+                                        <th class="sortable" onclick="sortData('sast', 'severity')">Severity ↕</th>
+                                        <th class="sortable" onclick="sortData('sast', 'category')">Rule Type ↕</th>
+                                        <th class="sortable" onclick="sortData('sast', 'id')">ID / Rule ↕</th>
                                         <th>Message</th>
                                         <th>CWE/OWASP</th>
                                         <th>Location</th>
@@ -112,25 +119,35 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div class="pagination-controls" id="sast-pagination">
+                            <!-- Populated by JS -->
+                        </div>
                     </div>
 
                     <div id="sca-fs-view" class="tab-content">
                         <div class="table-header">
                             <h2>SCA - Repository Dependencies</h2>
                             <div class="table-actions">
+                                <select class="filter-select" onchange="applyFilters('scaFs')">
+                                    <option value="">All Severities</option>
+                                    <option value="CRITICAL">Critical</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="LOW">Low</option>
+                                </select>
                                 <input type="text" placeholder="Search findings..." class="search-input"
-                                    onkeyup="filterTable('sca-fs-table', this.value)">
+                                    onkeyup="applyFilters('scaFs')">
                             </div>
                         </div>
                         <div class="table-responsive">
                             <table id="sca-fs-table">
                                 <thead>
                                     <tr>
-                                        <th>Severity</th>
-                                        <th>Package</th>
+                                        <th class="sortable" onclick="sortData('scaFs', 'severity')">Severity ↕</th>
+                                        <th class="sortable" onclick="sortData('scaFs', 'package')">Package ↕</th>
                                         <th>Installed</th>
                                         <th>Fixed In</th>
-                                        <th>Vulnerability ID</th>
+                                        <th class="sortable" onclick="sortData('scaFs', 'id')">Vulnerability ID ↕</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sca-fs-tbody">
@@ -138,31 +155,45 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div class="pagination-controls" id="sca-fs-pagination">
+                            <!-- Populated by JS -->
+                        </div>
                     </div>
 
                     <div id="sca-image-view" class="tab-content">
                         <div class="table-header">
                             <h2>SCA - Container Image</h2>
                             <div class="table-actions">
+                                <select class="filter-select" onchange="applyFilters('scaImage')">
+                                    <option value="">All Severities</option>
+                                    <option value="CRITICAL">Critical</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="LOW">Low</option>
+                                </select>
                                 <input type="text" placeholder="Search findings..." class="search-input"
-                                    onkeyup="filterTable('sca-image-table', this.value)">
+                                    onkeyup="applyFilters('scaImage')">
                             </div>
                         </div>
                         <div class="table-responsive">
                             <table id="sca-image-table">
                                 <thead>
                                     <tr>
-                                        <th>Severity</th>
-                                        <th>Package</th>
+                                        <th class="sortable" onclick="sortData('scaImage', 'severity')">Severity ↕</th>
+                                        <th class="sortable" onclick="sortData('scaImage', 'package')">Package ↕</th>
                                         <th>Installed</th>
                                         <th>Fixed In</th>
-                                        <th>Vulnerability ID</th>
+                                        <th class="sortable" onclick="sortData('scaImage', 'id')">Vulnerability ID ↕
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody id="sca-image-tbody">
                                     <!-- Populated by JS -->
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="pagination-controls" id="sca-image-pagination">
+                            <!-- Populated by JS -->
                         </div>
                     </div>
                 </div>
