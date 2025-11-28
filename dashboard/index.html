@@ -13,213 +13,216 @@
 </head>
 
 <body>
-    <div class="app-container">
-        <header class="glass-header">
+    <div class="app-wrapper">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
             <div class="logo-area">
                 <div class="logo-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                         <path fill-rule="evenodd"
                             d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.352-.272-2.636-.759-3.808a.75.75 0 00-.722-.515 11.208 11.208 0 01-7.877-3.08zM12 17.25a5.25 5.25 0 110-10.5 5.25 5.25 0 010 10.5z"
                             clip-rule="evenodd" />
                     </svg>
                 </div>
-                <h1>Security Dashboard <span class="beta-tag">PRO</span></h1>
+                <h2>DevSecOps <span class="beta-tag">PRO</span></h2>
             </div>
-            <div class="scan-info">
-                <button class="btn-secondary" onclick="exportData()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                        stroke="currentColor" class="w-4 h-4">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
-                    Export CSV
+
+            <div class="nav-links">
+                <button class="nav-btn active" onclick="navigateTo('overview')">
+                    <span class="icon">📊</span> Overview
                 </button>
-                <span id="scan-date">Loading date...</span>
-                <div class="status-badge success">Pipeline Passed</div>
+                <div class="nav-group-title">Analysis</div>
+                <button class="nav-btn" onclick="navigateTo('sast')">
+                    <span class="icon">🔍</span> SAST (Code)
+                </button>
+                <button class="nav-btn" onclick="navigateTo('sca-fs')">
+                    <span class="icon">📦</span> SCA (Repo)
+                </button>
+                <button class="nav-btn" onclick="navigateTo('sca-image')">
+                    <span class="icon">🐳</span> SCA (Image)
+                </button>
             </div>
-        </header>
 
-        <main class="dashboard-content">
-            <!-- Summary Section -->
-            <section class="summary-grid">
-                <div class="card summary-card total-vulns">
-                    <h3>Total Vulnerabilities</h3>
-                    <div class="big-number" id="total-count">0</div>
-                    <div class="trend-indicator">Across all scans</div>
+            <div class="sidebar-footer">
+                <div class="scan-info-mini">
+                    <span id="scan-date">Loading...</span>
+                    <div class="status-badge success">Pipeline Passed</div>
                 </div>
-                <div class="card summary-card critical-vulns">
-                    <h3>Critical</h3>
-                    <div class="big-number critical-color" id="critical-count">0</div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill critical-bg" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div class="card summary-card high-vulns">
-                    <h3>High</h3>
-                    <div class="big-number high-color" id="high-count">0</div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill high-bg" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div class="card summary-card medium-vulns">
-                    <h3>Medium</h3>
-                    <div class="big-number medium-color" id="medium-count">0</div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill medium-bg" style="width: 0%"></div>
-                    </div>
-                </div>
-            </section>
+            </div>
+        </nav>
 
-            <!-- Charts Section -->
-            <section class="charts-grid">
-                <div class="card chart-card">
-                    <h3>Vulnerabilities by Severity</h3>
-                    <div class="chart-container">
-                        <canvas id="severityChart"></canvas>
-                    </div>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h1 id="page-title">Dashboard Overview</h1>
+                <div class="top-actions">
+                    <button class="btn-secondary" onclick="exportData()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                            stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Export Report
+                    </button>
                 </div>
-                <div class="card chart-card">
-                    <h3>Vulnerabilities by Source</h3>
-                    <div class="chart-container">
-                        <canvas id="sourceChart"></canvas>
-                    </div>
-                </div>
-            </section>
+            </header>
 
-            <!-- Detailed Findings Section -->
-            <section class="details-section">
-                <div class="tabs-header">
-                    <div class="tabs">
-                        <button class="tab-btn active" onclick="switchTab('sast')">SAST (Semgrep)</button>
-                        <button class="tab-btn" onclick="switchTab('sca-fs')">SCA Repo (Trivy FS)</button>
-                        <button class="tab-btn" onclick="switchTab('sca-image')">SCA Image (Trivy Image)</button>
-                    </div>
-                    <div class="global-actions">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="show-dismissed" onchange="toggleDismissed()">
-                            <span class="slider"></span>
-                            <span class="label-text">Show Dismissed</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="card table-card">
-                    <div id="sast-view" class="tab-content active">
-                        <div class="table-header">
-                            <h2>Static Application Security Testing</h2>
-                            <div class="table-actions">
-                                <select class="filter-select" onchange="applyFilters('sast')">
-                                    <option value="">All Severities</option>
-                                    <option value="CRITICAL">Critical</option>
-                                    <option value="HIGH">High</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="LOW">Low</option>
-                                </select>
-                                <input type="text" placeholder="Search findings..." class="search-input"
-                                    onkeyup="applyFilters('sast')">
+            <div id="content-area">
+                <!-- Overview View -->
+                <div id="overview-view" class="view-section active">
+                    <section class="summary-grid">
+                        <div class="card summary-card total-vulns">
+                            <h3>Total Vulnerabilities</h3>
+                            <div class="big-number" id="total-count">0</div>
+                            <div class="trend-indicator">Across all scans</div>
+                        </div>
+                        <div class="card summary-card critical-vulns">
+                            <h3>Critical</h3>
+                            <div class="big-number critical-color" id="critical-count">0</div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill critical-bg" style="width: 0%"></div>
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table id="sast-table">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" onchange="toggleSelectAll('sast')"></th>
-                                        <th class="sortable" onclick="sortData('sast', 'severity')">Severity ↕</th>
-                                        <th class="sortable" onclick="sortData('sast', 'category')">Rule Type ↕</th>
-                                        <th class="sortable" onclick="sortData('sast', 'id')">ID / Rule ↕</th>
-                                        <th>Message</th>
-                                        <th>CWE/OWASP</th>
-                                        <th>Location</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sast-tbody">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="pagination-controls" id="sast-pagination">
-                            <!-- Populated by JS -->
-                        </div>
-                    </div>
-
-                    <div id="sca-fs-view" class="tab-content">
-                        <div class="table-header">
-                            <h2>SCA - Repository Dependencies</h2>
-                            <div class="table-actions">
-                                <select class="filter-select" onchange="applyFilters('scaFs')">
-                                    <option value="">All Severities</option>
-                                    <option value="CRITICAL">Critical</option>
-                                    <option value="HIGH">High</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="LOW">Low</option>
-                                </select>
-                                <input type="text" placeholder="Search findings..." class="search-input"
-                                    onkeyup="applyFilters('scaFs')">
+                        <div class="card summary-card high-vulns">
+                            <h3>High</h3>
+                            <div class="big-number high-color" id="high-count">0</div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill high-bg" style="width: 0%"></div>
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table id="sca-fs-table">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" onchange="toggleSelectAll('scaFs')"></th>
-                                        <th class="sortable" onclick="sortData('scaFs', 'severity')">Highest Severity ↕
-                                        </th>
-                                        <th class="sortable" onclick="sortData('scaFs', 'package')">Package ↕</th>
-                                        <th>Installed Version</th>
-                                        <th>Vulnerabilities</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sca-fs-tbody">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="pagination-controls" id="sca-fs-pagination">
-                            <!-- Populated by JS -->
-                        </div>
-                    </div>
-
-                    <div id="sca-image-view" class="tab-content">
-                        <div class="table-header">
-                            <h2>SCA - Container Image</h2>
-                            <div class="table-actions">
-                                <select class="filter-select" onchange="applyFilters('scaImage')">
-                                    <option value="">All Severities</option>
-                                    <option value="CRITICAL">Critical</option>
-                                    <option value="HIGH">High</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="LOW">Low</option>
-                                </select>
-                                <input type="text" placeholder="Search findings..." class="search-input"
-                                    onkeyup="applyFilters('scaImage')">
+                        <div class="card summary-card medium-vulns">
+                            <h3>Medium</h3>
+                            <div class="big-number medium-color" id="medium-count">0</div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill medium-bg" style="width: 0%"></div>
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table id="sca-image-table">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" onchange="toggleSelectAll('scaImage')"></th>
-                                        <th class="sortable" onclick="sortData('scaImage', 'severity')">Highest Severity
-                                            ↕</th>
-                                        <th class="sortable" onclick="sortData('scaImage', 'package')">Package ↕</th>
-                                        <th>Installed Version</th>
-                                        <th>Vulnerabilities</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sca-image-tbody">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
+                    </section>
+
+                    <div class="overview-split">
+                        <div class="card chart-card">
+                            <h3>Severity Distribution</h3>
+                            <div class="chart-container">
+                                <canvas id="severityChart"></canvas>
+                            </div>
                         </div>
-                        <div class="pagination-controls" id="sca-image-pagination">
-                            <!-- Populated by JS -->
+                        <div class="card top-issues-card">
+                            <h3>🚨 Top Critical Issues</h3>
+                            <div id="top-issues-list" class="issues-list">
+                                <!-- Populated by JS -->
+                            </div>
                         </div>
                     </div>
                 </div>
-            </section>
+
+                <!-- SAST View -->
+                <div id="sast-view" class="view-section">
+                    <div class="table-header">
+                        <div class="table-actions">
+                            <select class="filter-select" onchange="applyFilters('sast')">
+                                <option value="">All Severities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                            <input type="text" placeholder="Search findings..." class="search-input"
+                                onkeyup="applyFilters('sast')">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="show-dismissed-sast" onchange="toggleDismissed('sast')">
+                                <span class="slider"></span>
+                                <span class="label-text">Show Dismissed</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="sast-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" onchange="toggleSelectAll('sast')"></th>
+                                    <th class="sortable" onclick="sortData('sast', 'severity')">Severity ↕</th>
+                                    <th class="sortable" onclick="sortData('sast', 'category')">Rule Type ↕</th>
+                                    <th class="sortable" onclick="sortData('sast', 'id')">ID / Rule ↕</th>
+                                    <th>Message</th>
+                                    <th>CWE/OWASP</th>
+                                    <th>Location</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sast-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-controls" id="sast-pagination"></div>
+                </div>
+
+                <!-- SCA FS View -->
+                <div id="sca-fs-view" class="view-section">
+                    <div class="table-header">
+                        <div class="table-actions">
+                            <select class="filter-select" onchange="applyFilters('scaFs')">
+                                <option value="">All Severities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                            <input type="text" placeholder="Search findings..." class="search-input"
+                                onkeyup="applyFilters('scaFs')">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="sca-fs-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" onchange="toggleSelectAll('scaFs')"></th>
+                                    <th class="sortable" onclick="sortData('scaFs', 'severity')">Highest Severity ↕</th>
+                                    <th class="sortable" onclick="sortData('scaFs', 'package')">Package ↕</th>
+                                    <th>Installed Version</th>
+                                    <th>Vulnerabilities</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sca-fs-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-controls" id="sca-fs-pagination"></div>
+                </div>
+
+                <!-- SCA Image View -->
+                <div id="sca-image-view" class="view-section">
+                    <div class="table-header">
+                        <div class="table-actions">
+                            <select class="filter-select" onchange="applyFilters('scaImage')">
+                                <option value="">All Severities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                            <input type="text" placeholder="Search findings..." class="search-input"
+                                onkeyup="applyFilters('scaImage')">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="sca-image-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" onchange="toggleSelectAll('scaImage')"></th>
+                                    <th class="sortable" onclick="sortData('scaImage', 'severity')">Highest Severity ↕
+                                    </th>
+                                    <th class="sortable" onclick="sortData('scaImage', 'package')">Package ↕</th>
+                                    <th>Installed Version</th>
+                                    <th>Vulnerabilities</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sca-image-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-controls" id="sca-image-pagination"></div>
+                </div>
+
+            </div>
         </main>
     </div>
 

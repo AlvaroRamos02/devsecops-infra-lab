@@ -4,7 +4,7 @@ services:
     image: nginx:alpine
     container_name: security-dashboard
     ports:
-      - "7889:80"
+      - "7888:80"
     volumes:
       - ./dashboard:/usr/share/nginx/html:ro
     restart: always

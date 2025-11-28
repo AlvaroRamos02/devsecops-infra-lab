@@ -1,28 +1,49 @@
-# DevSecOps Infra Lab
+# DevSecOps Infra Lab 🛡️
 
-Laboratorio personal para practicar CI/CD y seguridad (DevSecOps) con Docker, Nginx y más.
+Laboratorio profesional de DevSecOps para practicar CI/CD y seguridad con un dashboard centralizado y fácil de usar.
 
-## 🛡️ Security Dashboard
+## 🚀 Características
 
-Este proyecto cuenta con un dashboard automatizado para visualizar los resultados de los análisis de seguridad (SAST y SCA).
+-   **Dashboard Profesional**: Interfaz moderna (Dark Mode) con panel central de métricas.
+-   **Análisis Completo**:
+    -   **SAST (Código)**: Detecta vulnerabilidades en tu código fuente (Semgrep).
+    -   **SCA (Dependencias)**: Analiza librerías vulnerables en tu repositorio (Trivy FS).
+    -   **SCA (Imagen)**: Escanea la imagen Docker final en busca de fallos (Trivy Image).
+-   **Remediación Inteligente**: Sugerencias automáticas de "Cómo solucionar" para cada hallazgo.
+-   **Acceso en Red**: Accede al dashboard desde cualquier dispositivo en tu red local.
 
-### Automatización
+## 🛠️ Tecnologías Soportadas
 
-El dashboard se genera y despliega automáticamente cada vez que se ejecuta el pipeline de CI/CD (GitHub Actions).
+Gracias a Semgrep y Trivy, este laboratorio soporta análisis de seguridad para:
 
-1.  **Generación de Reportes**: El pipeline ejecuta Semgrep y Trivy, generando los archivos JSON necesarios.
-2.  **Despliegue**: Al finalizar el análisis, se levanta un contenedor Docker que sirve el dashboard en el puerto **7888**.
+-   **Lenguajes**: Python, JavaScript/TypeScript, Java, Go, Ruby, PHP, C#, etc.
+-   **IaC**: Dockerfiles, Kubernetes YAML, Terraform.
+-   **Secretos**: Detección de credenciales hardcodeadas.
 
-### Acceso
+## 📊 Acceso al Dashboard
 
-Una vez que el job ha finalizado, puedes acceder al dashboard en:
+El dashboard se despliega automáticamente en el puerto **7888** tras ejecutar el pipeline.
 
+### Acceso Local
 👉 **[http://localhost:7888](http://localhost:7888)**
 
-### Ejecución Manual (Opcional)
+### Acceso desde la Red (LAN)
+Puedes acceder desde tu móvil u otro PC usando la IP de tu máquina:
+👉 **`http://<TU_IP_LOCAL>:7888`**
 
-Si deseas levantar el dashboard manualmente sin ejecutar todo el pipeline (asumiendo que ya tienes los datos en `dashboard/data`):
+> **Nota**: Asegúrate de que el puerto 7888 no esté bloqueado por tu firewall.
+
+## ⚙️ Ejecución Manual
+
+Si ya tienes los reportes generados en `dashboard/data`, puedes levantar solo el dashboard:
 
 ```bash
 docker-compose up -d dashboard
 ```
+
+## 📝 Estructura del Proyecto
+
+-   `.github/workflows`: Pipelines de CI/CD.
+-   `dashboard/`: Código fuente del dashboard (HTML/JS/CSS).
+-   `app/`: Aplicación de ejemplo vulnerable.
+

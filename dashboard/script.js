@@ -29,8 +29,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const allFindings = [...state.sast.data, ...state.scaFs.data, ...state.scaImage.data];
         updateSummary(allFindings);
         renderCharts(allFindings);
+        renderTopIssues(allFindings);
     });
 });
+
+// --- Navigation ---
+function navigateTo(viewId) {
+    // Update Sidebar
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(viewId));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Update Views
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    document.getElementById(`${viewId}-view`).classList.add('active');
+
+    // Update Page Title
+    const titles = {
+        'overview': 'Dashboard Overview',
+        'sast': 'SAST - Code Analysis',
+        'sca-fs': 'SCA - Repository Dependencies',
+        'sca-image': 'SCA - Container Images'
+    };
+    document.getElementById('page-title').textContent = titles[viewId] || 'Dashboard';
+}
 
 // --- Data Processing ---
 
@@ -595,13 +617,31 @@ function renderCharts(findings) {
     });
 }
 
-function switchTab(tabId) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-    const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
-    if (btn) btn.classList.add('active');
+function renderTopIssues(findings) {
+    const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
+    // Sort by severity (CRITICAL > HIGH)
+    const sorted = activeFindings.sort((a, b) => {
+        return SEVERITY_WEIGHTS[b.severity] - SEVERITY_WEIGHTS[a.severity];
+    });
 
-    const content = document.getElementById(`${tabId}-view`);
-    if (content) content.classList.add('active');
+    const top5 = sorted.slice(0, 5);
+    const container = document.getElementById('top-issues-list');
+
+    if (top5.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No critical issues found. Great job!</p>';
+        return;
+    }
+
+    container.innerHTML = top5.map(f => `
+        <div class="issue-item" onclick="openDrawer('${f.uuid}')">
+            <div class="severity-badge ${f.severity.toLowerCase()}" style="transform: scale(0.8); margin-right: 10px;">${f.severity}</div>
+            <div class="issue-content">
+                <div class="issue-title" title="${escapeHtml(f.message)}">${escapeHtml(f.message)}</div>
+                <div class="issue-meta">${f.type} • ${escapeHtml(f.id)}</div>
+            </div>
+            <div style="color: var(--text-secondary);">›</div>
+        </div>
+    `).join('');
 }
+
