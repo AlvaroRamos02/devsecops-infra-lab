@@ -129,4 +129,5 @@ jobs:
 
       - name: Deploy Dashboard (Local)
         run: |
+          docker-compose down
           docker-compose up -d --force-recreate dashboard
