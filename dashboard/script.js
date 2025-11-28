@@ -4,7 +4,8 @@ const state = {
     scaFs: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
     scaImage: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
     dismissed: JSON.parse(localStorage.getItem('dismissedFindings') || '[]'),
-    showDismissed: false
+    showDismissed: false,
+    selected: [] // Store UUIDs of selected items
 };
 
 const SEVERITY_WEIGHTS = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'UNKNOWN': 0 };
@@ -64,9 +65,23 @@ function processSemgrep(data) {
             cwe: metadata.cwe || [],
             owasp: metadata.owasp || [],
             code: item.extra.lines,
+            remediation: generateSastRemediation(item),
             raw: item
         };
     });
+}
+
+function generateSastRemediation(item) {
+    // Try to get message from metadata
+    if (item.extra.fix) return `Apply the following fix:\n\n${item.extra.fix}`;
+
+    // Generic advice based on category/keywords
+    const msg = item.extra.message || '';
+    if (msg.toLowerCase().includes('xss')) return "Sanitize all user inputs before rendering them in the browser. Use context-aware encoding.";
+    if (msg.toLowerCase().includes('sql injection')) return "Use parameterized queries or prepared statements. Avoid string concatenation for SQL queries.";
+    if (msg.toLowerCase().includes('hardcoded')) return "Move secrets to environment variables or a secrets manager. Do not commit secrets to version control.";
+
+    return "Review the code snippet and ensure it adheres to secure coding practices. Consult the OWASP guidelines linked below.";
 }
 
 function processTrivy(data) {
@@ -85,6 +100,7 @@ function processTrivy(data) {
                     installed: vuln.InstalledVersion,
                     fixed: vuln.FixedVersion || 'N/A',
                     message: vuln.Title || vuln.Description,
+                    remediation: vuln.FixedVersion ? `Upgrade ${vuln.PkgName} to version ${vuln.FixedVersion} or later.` : "No fixed version available. Monitor for updates or consider replacing the package.",
                     raw: vuln
                 });
             });
@@ -202,7 +218,12 @@ function renderTable(type) {
         const pageData = s.filtered.slice(start, end);
 
         tbody.innerHTML = pageData.map(f => `
-            <tr onclick="openDrawer('${f.uuid}')" style="cursor: pointer;">
+            <tr onclick="openDrawer('${f.uuid}')" style="cursor: pointer;" class="${state.selected.includes(f.uuid) ? 'selected-row' : ''}">
+                <td onclick="event.stopPropagation()">
+                    <input type="checkbox" class="row-checkbox" 
+                        onchange="toggleSelect('${f.uuid}')" 
+                        ${state.selected.includes(f.uuid) ? 'checked' : ''}>
+                </td>
                 <td><span class="severity-badge ${f.severity.toLowerCase()}">${f.severity}</span></td>
                 <td><span class="category-badge">${f.category}</span></td>
                 <td><code>${escapeHtml(f.id)}</code></td>
@@ -249,8 +270,13 @@ function renderTable(type) {
                 <td></td>
             </tr>
             ${g.findings.map(f => `
-                <tr class="child-row ${groupId}" onclick="openDrawer('${f.uuid}')" style="cursor: pointer;">
-                    <td></td>
+                <tr class="child-row ${groupId} ${state.selected.includes(f.uuid) ? 'selected-row' : ''}" onclick="openDrawer('${f.uuid}')" style="cursor: pointer;">
+                    <td></td> <!-- Indent -->
+                    <td onclick="event.stopPropagation()">
+                         <input type="checkbox" class="row-checkbox" 
+                            onchange="toggleSelect('${f.uuid}')" 
+                            ${state.selected.includes(f.uuid) ? 'checked' : ''}>
+                    </td>
                     <td><span class="severity-badge ${f.severity.toLowerCase()}" style="transform: scale(0.9);">${f.severity}</span></td>
                     <td><code>${escapeHtml(f.id)}</code></td>
                     <td>${escapeHtml(f.fixed)}</td>
@@ -324,6 +350,11 @@ function openDrawer(uuid) {
         </div>
         <h3>${escapeHtml(finding.message)}</h3>
         <p style="color: var(--text-secondary); margin-bottom: 1rem;">ID: <code>${finding.id}</code></p>
+
+        <div class="remediation-box">
+            <h4><span class="icon">🛠️</span> How to Fix</h4>
+            <p>${escapeHtml(finding.remediation)}</p>
+        </div>
     `;
 
     if (finding.type === 'SAST') {
@@ -390,6 +421,41 @@ function toggleDismissed() {
     applyFilters('sast');
     applyFilters('scaFs');
     applyFilters('scaImage');
+}
+
+function toggleSelect(uuid) {
+    if (state.selected.includes(uuid)) {
+        state.selected = state.selected.filter(id => id !== uuid);
+    } else {
+        state.selected.push(uuid);
+    }
+    updateBulkActions();
+}
+
+function toggleSelectAll(type) {
+    const s = state[type];
+    // If all currently filtered items are selected, deselect them. Otherwise select them.
+    const allSelected = s.filtered.every(f => state.selected.includes(f.uuid));
+
+    if (allSelected) {
+        s.filtered.forEach(f => {
+            state.selected = state.selected.filter(id => id !== f.uuid);
+        });
+    } else {
+        s.filtered.forEach(f => {
+            if (!state.selected.includes(f.uuid)) state.selected.push(f.uuid);
+        });
+    }
+
+    renderTable(type); // Re-render to update checkboxes
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const count = state.selected.length;
+    // In a real implementation we would show/hide a floating toolbar here
+    // For now we can just log it or update a counter if we had one
+    console.log(`Selected ${count} items`);
 }
 
 function exportData() {

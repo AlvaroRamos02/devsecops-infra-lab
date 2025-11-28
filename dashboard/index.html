@@ -123,6 +123,7 @@
                             <table id="sast-table">
                                 <thead>
                                     <tr>
+                                        <th><input type="checkbox" onchange="toggleSelectAll('sast')"></th>
                                         <th class="sortable" onclick="sortData('sast', 'severity')">Severity ↕</th>
                                         <th class="sortable" onclick="sortData('sast', 'category')">Rule Type ↕</th>
                                         <th class="sortable" onclick="sortData('sast', 'id')">ID / Rule ↕</th>
@@ -161,6 +162,7 @@
                             <table id="sca-fs-table">
                                 <thead>
                                     <tr>
+                                        <th><input type="checkbox" onchange="toggleSelectAll('scaFs')"></th>
                                         <th class="sortable" onclick="sortData('scaFs', 'severity')">Highest Severity ↕
                                         </th>
                                         <th class="sortable" onclick="sortData('scaFs', 'package')">Package ↕</th>
@@ -198,6 +200,7 @@
                             <table id="sca-image-table">
                                 <thead>
                                     <tr>
+                                        <th><input type="checkbox" onchange="toggleSelectAll('scaImage')"></th>
                                         <th class="sortable" onclick="sortData('scaImage', 'severity')">Highest Severity
                                             ↕</th>
                                         <th class="sortable" onclick="sortData('scaImage', 'package')">Package ↕</th>
