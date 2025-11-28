@@ -22,16 +22,16 @@ Gracias a Semgrep y Trivy, este laboratorio soporta análisis de seguridad para:
 
 ## 📊 Acceso al Dashboard
 
-El dashboard se despliega automáticamente en el puerto **7888** tras ejecutar el pipeline.
+El dashboard se despliega automáticamente en el puerto **7890** tras ejecutar el pipeline.
 
 ### Acceso Local
-👉 **[http://localhost:7888](http://localhost:7888)**
+👉 **[http://localhost:7890](http://localhost:7890)**
 
 ### Acceso desde la Red (LAN)
 Puedes acceder desde tu móvil u otro PC usando la IP de tu máquina:
-👉 **`http://<TU_IP_LOCAL>:7888`**
+👉 **`http://<TU_IP_LOCAL>:7890`**
 
-> **Nota**: Asegúrate de que el puerto 7888 no esté bloqueado por tu firewall.
+> **Nota**: Asegúrate de que el puerto 7890 no esté bloqueado por tu firewall.
 
 ## ⚙️ Ejecución Manual
 
@@ -46,4 +46,5 @@ docker-compose up -d dashboard
 -   `.github/workflows`: Pipelines de CI/CD.
 -   `dashboard/`: Código fuente del dashboard (HTML/JS/CSS).
 -   `app/`: Aplicación de ejemplo vulnerable.
+-   `INTEGRATION_MANUAL.md`: Guía completa de integración para clientes (GitHub, GitLab, Jenkins).
 
