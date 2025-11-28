@@ -94,15 +94,11 @@ function processSemgrep(data) {
 }
 
 function generateSastRemediation(item) {
-    // Try to get message from metadata
     if (item.extra.fix) return `Apply the following fix:\n\n${item.extra.fix}`;
-
-    // Generic advice based on category/keywords
     const msg = item.extra.message || '';
     if (msg.toLowerCase().includes('xss')) return "Sanitize all user inputs before rendering them in the browser. Use context-aware encoding.";
     if (msg.toLowerCase().includes('sql injection')) return "Use parameterized queries or prepared statements. Avoid string concatenation for SQL queries.";
     if (msg.toLowerCase().includes('hardcoded')) return "Move secrets to environment variables or a secrets manager. Do not commit secrets to version control.";
-
     return "Review the code snippet and ensure it adheres to secure coding practices. Consult the OWASP guidelines linked below.";
 }
 
@@ -174,47 +170,7 @@ function applyFilters(type) {
     });
 
     s.page = 1;
-    sortAndRender(type);
-}
-
-function sortData(type, col) {
-    const s = state[type];
-    if (s.sort.col === col) {
-        s.sort.asc = !s.sort.asc;
-    } else {
-        s.sort.col = col;
-        s.sort.asc = true;
-    }
-    sortAndRender(type);
-}
-
-function sortAndRender(type) {
-    const s = state[type];
-    const col = s.sort.col;
-    const asc = s.sort.asc;
-
-    if (type === 'sast') {
-        s.filtered.sort((a, b) => compare(a, b, col, asc));
-    }
-    // For SCA, grouping happens at render time, but we need to sort the groups.
-    // We'll handle SCA sorting inside renderTable to keep it simple.
-
-    renderTable(type);
-    renderPagination(type);
-}
-
-function compare(a, b, col, asc) {
-    let valA = a[col];
-    let valB = b[col];
-
-    if (col === 'severity') {
-        valA = SEVERITY_WEIGHTS[valA] || 0;
-        valB = SEVERITY_WEIGHTS[valB] || 0;
-    }
-
-    if (valA < valB) return asc ? -1 : 1;
-    if (valA > valB) return asc ? 1 : -1;
-    return 0;
+    renderList(type);
 }
 
 // --- Rendering ---
@@ -229,89 +185,133 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
-function renderTable(type) {
+function renderDismissButton(uuid) {
+    const isDismissed = state.dismissed.includes(uuid);
+    return `
+        <button class="dismiss-btn ${isDismissed ? 'restorable' : ''}" onclick="event.stopPropagation(); toggleDismiss('${uuid}')">
+            ${isDismissed ? '↺ Restore' : '⨯ Dismiss'}
+        </button>
+    `;
+}
+
+function renderList(type) {
     const s = state[type];
-    const tbodyId = type === 'scaFs' ? 'sca-fs-tbody' : (type === 'scaImage' ? 'sca-image-tbody' : 'sast-tbody');
-    const tbody = document.getElementById(tbodyId);
+    const listId = type === 'scaFs' ? 'sca-fs-list' : (type === 'scaImage' ? 'sca-image-list' : 'sast-list');
+    const listContainer = document.getElementById(listId);
 
     if (type === 'sast') {
         const start = (s.page - 1) * s.pageSize;
         const end = start + s.pageSize;
         const pageData = s.filtered.slice(start, end);
 
-        tbody.innerHTML = pageData.map(f => `
-            <tr onclick="openDrawer('${f.uuid}')" style="cursor: pointer;" class="${state.selected.includes(f.uuid) ? 'selected-row' : ''}">
-                <td onclick="event.stopPropagation()">
-                    <input type="checkbox" class="row-checkbox" 
-                        onchange="toggleSelect('${f.uuid}')" 
-                        ${state.selected.includes(f.uuid) ? 'checked' : ''}>
-                </td>
-                <td><span class="severity-badge ${f.severity.toLowerCase()}">${f.severity}</span></td>
-                <td><span class="category-badge">${f.category}</span></td>
-                <td><code>${escapeHtml(f.id)}</code></td>
-                <td>${escapeHtml(f.message)}</td>
-                <td>
-                    ${(Array.isArray(f.cwe) ? f.cwe : [f.cwe]).filter(Boolean).map(c => `<span class="tag cwe">${c}</span>`).join('')}
-                    ${(Array.isArray(f.owasp) ? f.owasp : [f.owasp]).filter(Boolean).map(o => `<span class="tag owasp">${o}</span>`).join('')}
-                </td>
-                <td><code>${escapeHtml(f.location)}</code></td>
-                <td>
-                    <button class="action-btn dismiss" onclick="event.stopPropagation(); toggleDismiss('${f.uuid}')">
-                        ${state.dismissed.includes(f.uuid) ? 'Restore' : 'Dismiss'}
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        if (pageData.length === 0) {
+            listContainer.innerHTML = '<div style="text-align:center; padding: 2rem; color: var(--text-secondary);">No findings match your filters.</div>';
+        } else {
+            listContainer.innerHTML = pageData.map(f => `
+                <div class="vuln-card ${state.selected.includes(f.uuid) ? 'selected' : ''}" onclick="openDrawer('${f.uuid}')">
+                    <div class="vuln-icon">
+                        ${getSeverityIcon(f.severity)}
+                    </div>
+                    <div class="vuln-details">
+                        <div class="vuln-header">
+                            <span class="severity-pill ${f.severity.toLowerCase()}">${f.severity}</span>
+                            <span class="vuln-title">${escapeHtml(f.message)}</span>
+                        </div>
+                        <div class="vuln-meta">
+                            <span class="vuln-id">${escapeHtml(f.id)}</span>
+                            <span>•</span>
+                            <span>${escapeHtml(f.location)}</span>
+                            <span>•</span>
+                            <span>
+                                ${(Array.isArray(f.cwe) ? f.cwe : [f.cwe]).filter(Boolean).map(c => `<span class="tag cwe">${c}</span>`).join('')}
+                                ${(Array.isArray(f.owasp) ? f.owasp : [f.owasp]).filter(Boolean).map(o => `<span class="tag owasp">${o}</span>`).join('')}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="vuln-actions-area">
+                        ${renderDismissButton(f.uuid)}
+                    </div>
+                </div>
+            `).join('');
+        }
     } else {
         // SCA Grouping
         const groups = groupScaFindings(s.filtered);
-        // Sort groups
-        const col = s.sort.col;
-        const asc = s.sort.asc;
+        // Sort groups by max severity
         groups.sort((a, b) => {
-            if (col === 'severity') return compare({ severity: a.maxSeverity }, { severity: b.maxSeverity }, 'severity', asc);
-            if (col === 'package') return compare(a, b, 'package', asc);
-            return 0;
+            return SEVERITY_WEIGHTS[b.maxSeverity] - SEVERITY_WEIGHTS[a.maxSeverity];
         });
 
         const start = (s.page - 1) * s.pageSize;
         const end = start + s.pageSize;
         const pageGroups = groups.slice(start, end);
 
-        tbody.innerHTML = pageGroups.map(g => {
-            const groupId = `group-${g.package.replace(/[^a-zA-Z0-9]/g, '-')}`;
-            return `
-            <tr class="group-header" onclick="toggleGroup('${groupId}', this)">
-                <td><span class="severity-badge ${g.maxSeverity.toLowerCase()}">${g.maxSeverity}</span></td>
-                <td>
-                    <span class="group-expand-icon">▶</span> 
-                    <strong>${escapeHtml(g.package)}</strong>
-                </td>
-                <td>${escapeHtml(g.installed)}</td>
-                <td>${g.findings.length} vulnerabilities</td>
-                <td></td>
-            </tr>
-            ${g.findings.map(f => `
-                <tr class="child-row ${groupId} ${state.selected.includes(f.uuid) ? 'selected-row' : ''}" onclick="openDrawer('${f.uuid}')" style="cursor: pointer;">
-                    <td></td> <!-- Indent -->
-                    <td onclick="event.stopPropagation()">
-                         <input type="checkbox" class="row-checkbox" 
-                            onchange="toggleSelect('${f.uuid}')" 
-                            ${state.selected.includes(f.uuid) ? 'checked' : ''}>
-                    </td>
-                    <td><span class="severity-badge ${f.severity.toLowerCase()}" style="transform: scale(0.9);">${f.severity}</span></td>
-                    <td><code>${escapeHtml(f.id)}</code></td>
-                    <td>${escapeHtml(f.fixed)}</td>
-                    <td>
-                        <button class="action-btn dismiss" onclick="event.stopPropagation(); toggleDismiss('${f.uuid}')">
-                            ${state.dismissed.includes(f.uuid) ? 'Restore' : 'Dismiss'}
-                        </button>
-                    </td>
-                </tr>
-            `).join('')}
-            `;
-        }).join('');
+        if (pageGroups.length === 0) {
+            listContainer.innerHTML = '<div style="text-align:center; padding: 2rem; color: var(--text-secondary);">No findings match your filters.</div>';
+        } else {
+            listContainer.innerHTML = pageGroups.map(g => {
+                const groupId = `group-${g.package.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                return `
+                <div class="group-container">
+                    <div class="group-header" onclick="toggleGroup('${groupId}', this)">
+                        <span class="group-expand-icon">▶</span>
+                        <span class="severity-pill ${g.maxSeverity.toLowerCase()}">${g.maxSeverity}</span>
+                        <strong style="font-size: 1rem; color: var(--text-primary);">${escapeHtml(g.package)}</strong>
+                        <span style="color: var(--text-secondary); font-size: 0.9rem;">${escapeHtml(g.installed)}</span>
+                        <span style="margin-left: auto; color: var(--text-secondary); font-size: 0.85rem;">${g.findings.length} vulnerabilities</span>
+                    </div>
+                    ${g.findings.map(f => `
+                        <div class="child-row ${groupId} vuln-card" onclick="openDrawer('${f.uuid}')" style="margin-left: 20px; border-left: 2px solid var(--border-color);">
+                            <div class="vuln-icon" style="font-size: 1.2rem;">
+                                ${getSeverityIcon(f.severity)}
+                            </div>
+                            <div class="vuln-details">
+                                <div class="vuln-header">
+                                    <span class="severity-pill ${f.severity.toLowerCase()}" style="transform: scale(0.9);">${f.severity}</span>
+                                    <span class="vuln-title" style="font-size: 0.95rem;">${escapeHtml(f.id)}</span>
+                                </div>
+                                <div class="vuln-meta">
+                                    <span>Fixed in: <code style="color: #4ade80">${escapeHtml(f.fixed)}</code></span>
+                                </div>
+                            </div>
+                            <div class="vuln-actions-area">
+                                ${renderDismissButton(f.uuid)}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                `;
+            }).join('');
+        }
     }
+    renderPagination(type);
+}
+
+function getSeverityIcon(severity) {
+    const s = severity.toUpperCase();
+    const colors = {
+        'CRITICAL': '#ff4757',
+        'HIGH': '#ffae42',
+        'MEDIUM': '#ffd86a',
+        'LOW': '#3cb0ff',
+        'UNKNOWN': '#788b91'
+    };
+    const color = colors[s] || colors.UNKNOWN;
+
+    // Simple geometric shapes for "Zero-G" feel
+    if (s === 'CRITICAL') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="${color}"><path d="M12 2L1 21h22L12 2zm0 3.45l8.27 14.3H3.73L12 5.45zM11 10v6h2v-6h-2zm0 8v2h2v-2h-2z"/></svg>`; // Triangle
+    }
+    if (s === 'HIGH') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="${color}"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`; // Circle Exclamation
+    }
+    if (s === 'MEDIUM') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="${color}"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/></svg>`; // Square
+    }
+    if (s === 'LOW') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="${color}"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5zm4 4h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>`; // Circle Info (approx)
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="${color}"><circle cx="12" cy="12" r="10" opacity="0.5"/></svg>`;
 }
 
 function toggleGroup(groupId, header) {
@@ -323,7 +323,6 @@ function toggleGroup(groupId, header) {
 
 function renderPagination(type) {
     const s = state[type];
-    // For SCA we paginate GROUPS, for SAST we paginate ITEMS
     const totalItems = type === 'sast' ? s.filtered.length : groupScaFindings(s.filtered).length;
     const totalPages = Math.ceil(totalItems / s.pageSize);
 
@@ -332,28 +331,14 @@ function renderPagination(type) {
 
     container.innerHTML = `
         <button ${s.page === 1 ? 'disabled' : ''} onclick="changePage('${type}', -1)">Previous</button>
-        <span>Page ${s.page} of ${totalPages || 1} (${totalItems} items)</span>
+        <span>Page ${s.page} of ${totalPages || 1}</span>
         <button ${s.page === totalPages || totalPages === 0 ? 'disabled' : ''} onclick="changePage('${type}', 1)">Next</button>
-        <select onchange="changePageSize('${type}', this.value)" style="margin-left: 10px; padding: 4px;">
-            <option value="5" ${s.pageSize === 5 ? 'selected' : ''}>5 / page</option>
-            <option value="10" ${s.pageSize === 10 ? 'selected' : ''}>10 / page</option>
-            <option value="25" ${s.pageSize === 25 ? 'selected' : ''}>25 / page</option>
-            <option value="50" ${s.pageSize === 50 ? 'selected' : ''}>50 / page</option>
-        </select>
     `;
 }
 
 function changePage(type, delta) {
     state[type].page += delta;
-    renderTable(type);
-    renderPagination(type);
-}
-
-function changePageSize(type, size) {
-    state[type].pageSize = parseInt(size);
-    state[type].page = 1;
-    renderTable(type);
-    renderPagination(type);
+    renderList(type);
 }
 
 // --- Drawer & Details ---
@@ -366,49 +351,72 @@ function openDrawer(uuid) {
     const content = document.getElementById('drawer-content');
 
     let detailsHtml = `
-        <div style="margin-bottom: 1rem;">
-            <span class="severity-badge ${finding.severity.toLowerCase()}">${finding.severity}</span>
-            <span class="category-badge">${finding.type}</span>
+        <div style="margin-bottom: 1.5rem;">
+            <span class="severity-pill ${finding.severity.toLowerCase()}">${finding.severity}</span>
+            <span class="tag" style="margin-left: 10px;">${finding.type}</span>
         </div>
-        <h3>${escapeHtml(finding.message)}</h3>
-        <p style="color: var(--text-secondary); margin-bottom: 1rem;">ID: <code>${finding.id}</code></p>
+        <h3 style="font-size: 1.25rem; margin-bottom: 1rem;">${escapeHtml(finding.message)}</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">ID: <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">${finding.id}</code></p>
 
         <div class="remediation-box">
-            <h4><span class="icon">🛠️</span> How to Fix</h4>
+            <h4 style="margin-bottom: 0.5rem; color: #4ade80;">🛠️ How to Fix</h4>
             <p>${escapeHtml(finding.remediation)}</p>
         </div>
     `;
 
     if (finding.type === 'SAST') {
         detailsHtml += `
-            <h4>Location</h4>
-            <p><code>${escapeHtml(finding.location)}</code></p>
+            <div style="margin-top: 2rem;">
+                <h4>Location</h4>
+                <p style="color: var(--text-secondary); font-family: monospace;">${escapeHtml(finding.location)}</p>
+            </div>
             
-            <h4>Code Snippet</h4>
-            <div class="code-block">
-                ${finding.code ? `<span class="code-line highlight">${escapeHtml(finding.code)}</span>` : '<span class="code-line">// Code snippet not available</span>'}
+            <div style="margin-top: 1.5rem;">
+                <h4>Code Snippet</h4>
+                <div class="code-block">
+                    ${finding.code ? `<span class="code-line highlight">${escapeHtml(finding.code)}</span>` : '<span class="code-line">// Code snippet not available</span>'}
+                </div>
             </div>
 
-            <div style="margin-top: 1rem;">
+            <div style="margin-top: 1.5rem;">
                 <h4>Standards</h4>
-                ${(Array.isArray(finding.cwe) ? finding.cwe : [finding.cwe]).filter(Boolean).map(c => `<span class="tag cwe">${c}</span>`).join('')}
-                ${(Array.isArray(finding.owasp) ? finding.owasp : [finding.owasp]).filter(Boolean).map(o => `<span class="tag owasp">${o}</span>`).join('')}
+                <div style="margin-top: 0.5rem;">
+                    ${(Array.isArray(finding.cwe) ? finding.cwe : [finding.cwe]).filter(Boolean).map(c => `<span class="tag cwe">${c}</span>`).join('')}
+                    ${(Array.isArray(finding.owasp) ? finding.owasp : [finding.owasp]).filter(Boolean).map(o => `<span class="tag owasp">${o}</span>`).join('')}
+                </div>
             </div>
         `;
     } else {
         detailsHtml += `
-            <h4>Package Details</h4>
-            <p>Package: <strong>${escapeHtml(finding.package)}</strong></p>
-            <p>Installed Version: <code>${escapeHtml(finding.installed)}</code></p>
-            <p>Fixed Version: <code style="color: #4ade80">${escapeHtml(finding.fixed)}</code></p>
+            <div style="margin-top: 2rem;">
+                <h4>Package Details</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+                    <div>
+                        <span style="color: var(--text-secondary); font-size: 0.85rem;">Package</span>
+                        <div style="font-weight: 600;">${escapeHtml(finding.package)}</div>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary); font-size: 0.85rem;">Installed Version</span>
+                        <div style="font-family: monospace;">${escapeHtml(finding.installed)}</div>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary); font-size: 0.85rem;">Fixed Version</span>
+                        <div style="font-family: monospace; color: #4ade80;">${escapeHtml(finding.fixed)}</div>
+                    </div>
+                </div>
+            </div>
             
-            <h4>Description</h4>
-            <p>${escapeHtml(finding.raw.Description || 'No description available.')}</p>
+            <div style="margin-top: 1.5rem;">
+                <h4>Description</h4>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6;">${escapeHtml(finding.raw.Description || 'No description available.')}</p>
+            </div>
             
-            <h4>References</h4>
-            <ul>
-                ${(finding.raw.References || []).slice(0, 3).map(url => `<li><a href="${url}" target="_blank" style="color: var(--accent-color)">${url}</a></li>`).join('')}
-            </ul>
+            <div style="margin-top: 1.5rem;">
+                <h4>References</h4>
+                <ul style="list-style: none; padding: 0; margin-top: 0.5rem;">
+                    ${(finding.raw.References || []).slice(0, 3).map(url => `<li style="margin-bottom: 4px;"><a href="${url}" target="_blank" style="color: var(--accent-color); text-decoration: none; font-size: 0.9rem;">🔗 ${url}</a></li>`).join('')}
+                </ul>
+            </div>
         `;
     }
 
@@ -438,46 +446,18 @@ function toggleDismiss(uuid) {
     applyFilters('scaImage');
 }
 
-function toggleDismissed() {
-    state.showDismissed = document.getElementById('show-dismissed').checked;
-    applyFilters('sast');
-    applyFilters('scaFs');
-    applyFilters('scaImage');
-}
-
-function toggleSelect(uuid) {
-    if (state.selected.includes(uuid)) {
-        state.selected = state.selected.filter(id => id !== uuid);
-    } else {
-        state.selected.push(uuid);
+function toggleDismissed(type) {
+    // We only have one checkbox ID in the new HTML for SAST, but we might want it for others.
+    // The HTML I wrote has one checkbox for SAST. 
+    // If we want global toggle, we need to sync them or just use one.
+    // For now, let's assume the checkbox passed the type or we check the active view.
+    const checkbox = document.getElementById(`show-dismissed-${type}`);
+    if (checkbox) {
+        state.showDismissed = checkbox.checked;
+        applyFilters('sast');
+        applyFilters('scaFs');
+        applyFilters('scaImage');
     }
-    updateBulkActions();
-}
-
-function toggleSelectAll(type) {
-    const s = state[type];
-    // If all currently filtered items are selected, deselect them. Otherwise select them.
-    const allSelected = s.filtered.every(f => state.selected.includes(f.uuid));
-
-    if (allSelected) {
-        s.filtered.forEach(f => {
-            state.selected = state.selected.filter(id => id !== f.uuid);
-        });
-    } else {
-        s.filtered.forEach(f => {
-            if (!state.selected.includes(f.uuid)) state.selected.push(f.uuid);
-        });
-    }
-
-    renderTable(type); // Re-render to update checkboxes
-    updateBulkActions();
-}
-
-function updateBulkActions() {
-    const count = state.selected.length;
-    // In a real implementation we would show/hide a floating toolbar here
-    // For now we can just log it or update a counter if we had one
-    console.log(`Selected ${count} items`);
 }
 
 function exportData() {
@@ -511,8 +491,6 @@ function exportData() {
 
 // --- Utils ---
 function updateSummary(findings) {
-    // Count only non-dismissed for summary unless showDismissed is true? 
-    // Usually summary shows active risks.
     const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
 
     const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
@@ -539,27 +517,15 @@ function updateSummary(findings) {
 }
 
 function renderCharts(findings) {
-    // Same logic, use active findings
     const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
-
     const severityCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
-    const sourceCounts = { SAST: 0, SCA: 0 };
 
     activeFindings.forEach(f => {
         const sev = f.severity;
         if (severityCounts[sev] !== undefined) severityCounts[sev]++;
         else severityCounts.UNKNOWN++;
-
-        if (f.type === 'SAST') sourceCounts.SAST++;
-        else sourceCounts.SCA++;
     });
 
-    // Severity Chart
-    // Note: In a real app we would destroy the old chart instance. 
-    // For simplicity here we just create new ones, which might overlay.
-    // A robust solution would store chart instances in `state` and call .destroy().
-
-    // Simple hack: clear canvas container
     const sevContainer = document.getElementById('severityChart').parentNode;
     sevContainer.innerHTML = '<canvas id="severityChart"></canvas>';
 
@@ -575,52 +541,33 @@ function renderCharts(findings) {
                     severityCounts.LOW,
                     severityCounts.UNKNOWN
                 ],
-                backgroundColor: ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#64748b'],
-                borderWidth: 0
+                backgroundColor: ['#ff4757', '#ffae42', '#ffd86a', '#3cb0ff', '#788b91'],
+                borderWidth: 0,
+                hoverOffset: 10
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '75%',
             plugins: {
-                legend: { position: 'right', labels: { color: '#94a3b8' } }
-            }
-        }
-    });
-
-    const sourceContainer = document.getElementById('sourceChart').parentNode;
-    sourceContainer.innerHTML = '<canvas id="sourceChart"></canvas>';
-
-    // Source Chart
-    new Chart(document.getElementById('sourceChart'), {
-        type: 'bar',
-        data: {
-            labels: ['SAST (Code)', 'SCA (Dependencies)'],
-            datasets: [{
-                label: 'Vulnerabilities',
-                data: [sourceCounts.SAST, sourceCounts.SCA],
-                backgroundColor: ['#38bdf8', '#818cf8'],
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
-                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-            },
-            plugins: {
-                legend: { display: false }
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: '#8b92a8',
+                        font: { family: 'Outfit', size: 12 },
+                        padding: 20,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                }
             }
         }
     });
 }
 
-
 function renderTopIssues(findings) {
     const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
-    // Sort by severity (CRITICAL > HIGH)
     const sorted = activeFindings.sort((a, b) => {
         return SEVERITY_WEIGHTS[b.severity] - SEVERITY_WEIGHTS[a.severity];
     });
@@ -635,7 +582,7 @@ function renderTopIssues(findings) {
 
     container.innerHTML = top5.map(f => `
         <div class="issue-item" onclick="openDrawer('${f.uuid}')">
-            <div class="severity-badge ${f.severity.toLowerCase()}" style="transform: scale(0.8); margin-right: 10px;">${f.severity}</div>
+            <div class="severity-pill ${f.severity.toLowerCase()}" style="transform: scale(0.8); margin-right: 0;">${f.severity}</div>
             <div class="issue-content">
                 <div class="issue-title" title="${escapeHtml(f.message)}">${escapeHtml(f.message)}</div>
                 <div class="issue-meta">${f.type} • ${escapeHtml(f.id)}</div>
@@ -644,4 +591,3 @@ function renderTopIssues(findings) {
         </div>
     `).join('');
 }
-
