@@ -691,23 +691,35 @@ function exportData() {
         ...state.scaImage.filtered
     ];
 
+    // Helper to format standards
+    const formatStandards = (f) => {
+        const standards = [];
+        if (f.cwe && f.cwe.length) standards.push(`CWE: ${f.cwe.join(', ')}`);
+        if (f.owasp && f.owasp.length) standards.push(`OWASP: ${f.owasp.join(', ')}`);
+        return standards.join('; ');
+    };
+
     const csvContent = "data:text/csv;charset=utf-8,"
-        + "Type,Severity,ID,Message,Package,Location\n"
+        + "Type,Severity,Rule ID,Summary,Location,Package,Installed Version,Fixed Version,Standards,Remediation\n"
         + allFiltered.map(f => {
             return [
                 f.type,
                 f.severity,
                 f.id,
                 `"${(f.message || '').replace(/"/g, '""')}"`,
+                `"${(f.location || 'N/A').replace(/"/g, '""')}"`,
                 f.package || 'N/A',
-                f.location || 'N/A'
+                f.installed || 'N/A',
+                f.fixed || 'N/A',
+                `"${formatStandards(f).replace(/"/g, '""')}"`,
+                `"${(f.remediation || '').replace(/"/g, '""')}"`
             ].join(",");
         }).join("\n");
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "security_report.csv");
+    link.setAttribute("download", `security_report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
