@@ -313,12 +313,7 @@ function renderList(type) {
                         <div class="vuln-meta">
                             <span class="vuln-id">${escapeHtml(f.id)}</span>
                             <span>•</span>
-                            <span>${escapeHtml(f.location)}</span>
-                            <span>•</span>
-                            <span>
-                                ${(Array.isArray(f.cwe) ? f.cwe : [f.cwe]).filter(Boolean).map(c => `<span class="tag cwe">${c}</span>`).join('')}
-                                ${(Array.isArray(f.owasp) ? f.owasp : [f.owasp]).filter(Boolean).map(o => `<span class="tag owasp">${o}</span>`).join('')}
-                            </span>
+                            <span style="font-family: monospace;">${escapeHtml(f.location.split('/').pop())}</span>
                         </div>
                     </div>
                     <div class="vuln-actions-area">
