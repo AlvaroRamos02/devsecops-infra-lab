@@ -7,7 +7,9 @@ const state = {
     showDismissed: false,
     selected: [], // Store UUIDs of selected items
     viewMode: 'list', // 'list' or 'modules'
-    moduleDepth: 2 // Default depth for module grouping
+    moduleDepth: 2, // Default depth for module grouping
+    activeModule: null, // Current module filter for drill-down
+    overviewFilter: 'ALL' // 'ALL', 'SAST', 'SCA'
 };
 
 const SEVERITY_WEIGHTS = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'UNKNOWN': 0 };
@@ -28,12 +30,35 @@ document.addEventListener('DOMContentLoaded', () => {
         applyFilters('scaFs');
         applyFilters('scaImage');
 
-        const allFindings = [...state.sast.data, ...state.scaFs.data, ...state.scaImage.data];
-        updateSummary(allFindings);
-        renderCharts(allFindings);
-        renderTopIssues(allFindings);
+        updateOverview();
     });
 });
+
+function updateOverview() {
+    const allFindings = [...state.sast.data, ...state.scaFs.data, ...state.scaImage.data];
+    let filteredFindings = allFindings;
+
+    if (state.overviewFilter === 'SAST') {
+        filteredFindings = state.sast.data;
+    } else if (state.overviewFilter === 'SCA') {
+        filteredFindings = [...state.scaFs.data, ...state.scaImage.data];
+    }
+
+    updateSummary(filteredFindings);
+    renderCharts(filteredFindings);
+    renderTopIssues(filteredFindings);
+}
+
+function filterOverview(type, btn) {
+    state.overviewFilter = type;
+
+    // Update buttons
+    const container = btn.parentElement;
+    container.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    updateOverview();
+}
 
 // --- Navigation ---
 function navigateTo(viewId) {
@@ -249,11 +274,28 @@ function applyFilters(type) {
     s.filtered = s.data.filter(item => {
         if (!state.showDismissed && state.dismissed.includes(item.uuid)) return false;
 
+        // Module Context Filter
+        if (type === 'sast' && state.sast.activeModule) {
+            // Strict check: item path must start with the active module path
+            // We use the 'location' field which is "path/to/file:line"
+            // We need to match the directory part.
+            const itemPath = item.location.split(':')[0];
+            // Check if itemPath starts with the module path (plus a slash to ensure directory match)
+            // or if it IS the module path (for files at root of module)
+            // Actually, we should check if getModuleFromPath(itemPath, depth) === activeModule
+            // But we stored the module name as the key.
+            // Let's use the helper.
+            const modName = getModuleFromPath(itemPath, state.moduleDepth);
+            if (modName !== state.sast.activeModule) return false;
+        }
+
         const matchesSeverity = !severityFilter || item.severity === severityFilter;
         const matchesSearch = !searchFilter ||
             item.id.toLowerCase().includes(searchFilter) ||
             item.message.toLowerCase().includes(searchFilter) ||
-            (item.package && item.package.toLowerCase().includes(searchFilter));
+            (item.package && item.package.toLowerCase().includes(searchFilter)) ||
+            (item.location && item.location.toLowerCase().includes(searchFilter)); // Added location search
+
         return matchesSeverity && matchesSearch;
     });
 
@@ -296,6 +338,19 @@ function renderList(type) {
         const start = (s.page - 1) * s.pageSize;
         const end = start + s.pageSize;
         const pageData = s.filtered.slice(start, end);
+
+        if (state.sast.activeModule) {
+            listContainer.innerHTML = `
+                <div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 10px;">
+                    <button class="btn-secondary" onclick="clearModuleFilter()" style="padding: 4px 12px; font-size: 0.8rem;">
+                        ← Back to Modules
+                    </button>
+                    <span style="color: var(--text-secondary);">Filtering by: <strong style="color: var(--text-primary);">${escapeHtml(state.sast.activeModule)}</strong></span>
+                </div>
+             `;
+        } else {
+            listContainer.innerHTML = '';
+        }
 
         if (pageData.length === 0) {
             listContainer.innerHTML = '<div style="text-align:center; padding: 2rem; color: var(--text-secondary);">No findings match your filters.</div>';
@@ -440,14 +495,20 @@ function renderModules(type) {
 }
 
 function filterByModule(moduleName) {
-    // When clicking a module, switch to list view and filter by that module
-    // For now, let's just switch to list view and maybe set a search filter?
-    // Or just show the list of findings for that module.
-    // A simple way is to set the search input to the module name.
+    state.sast.activeModule = moduleName;
+
+    // Clear search input to avoid confusion
     const searchInput = document.querySelector('#sast-view .search-input');
-    searchInput.value = moduleName;
+    searchInput.value = '';
+
     switchViewMode('list'); // Switch back to list
     applyFilters('sast'); // Apply filter
+}
+
+function clearModuleFilter() {
+    state.sast.activeModule = null;
+    switchViewMode('modules');
+    applyFilters('sast');
 }
 
 function getSeverityIcon(severity) {

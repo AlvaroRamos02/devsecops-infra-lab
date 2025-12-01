@@ -96,6 +96,14 @@
             <div id="content-area">
                 <!-- Overview View -->
                 <div id="overview-view" class="view-section active">
+                    <div class="overview-controls"
+                        style="margin-bottom: 20px; display: flex; justify-content: flex-end;">
+                        <div class="view-toggle">
+                            <button class="toggle-btn active" onclick="filterOverview('ALL', this)">All</button>
+                            <button class="toggle-btn" onclick="filterOverview('SAST', this)">SAST</button>
+                            <button class="toggle-btn" onclick="filterOverview('SCA', this)">SCA</button>
+                        </div>
+                    </div>
                     <section class="summary-grid">
                         <div class="card summary-card total-vulns">
                             <h3>Total Vulnerabilities</h3>
