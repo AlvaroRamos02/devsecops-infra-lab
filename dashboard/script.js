@@ -5,7 +5,9 @@ const state = {
     scaImage: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
     dismissed: JSON.parse(localStorage.getItem('dismissedFindings') || '[]'),
     showDismissed: false,
-    selected: [] // Store UUIDs of selected items
+    selected: [], // Store UUIDs of selected items
+    viewMode: 'list', // 'list' or 'modules'
+    moduleDepth: 2 // Default depth for module grouping
 };
 
 const SEVERITY_WEIGHTS = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'UNKNOWN': 0 };
@@ -52,6 +54,33 @@ function navigateTo(viewId) {
         'sca-image': 'SCA - Container Images'
     };
     document.getElementById('page-title').textContent = titles[viewId] || 'Dashboard';
+}
+
+// --- View Mode & Depth Control ---
+
+function switchViewMode(mode) {
+    state.viewMode = mode;
+
+    // Update buttons
+    document.getElementById('view-list-btn').classList.toggle('active', mode === 'list');
+    document.getElementById('view-modules-btn').classList.toggle('active', mode === 'modules');
+
+    // Show/Hide Depth Control
+    const depthControl = document.getElementById('module-depth-control');
+    if (mode === 'modules') {
+        depthControl.style.display = 'flex';
+    } else {
+        depthControl.style.display = 'none';
+    }
+
+    // Re-render current view (SAST only for now)
+    renderList('sast');
+}
+
+function updateModuleDepth(depth) {
+    state.moduleDepth = parseInt(depth);
+    document.getElementById('depth-value').textContent = depth;
+    renderList('sast');
 }
 
 // --- Data Processing ---
@@ -150,6 +179,65 @@ function groupScaFindings(findings) {
     return Object.values(groups);
 }
 
+// --- Module Grouping Logic ---
+
+function getModuleFromPath(path, depth) {
+    if (!path) return 'Root';
+    const parts = path.split('/');
+    // Filter out empty parts (e.g. leading slash)
+    const cleanParts = parts.filter(p => p && p !== '.');
+
+    if (cleanParts.length === 0) return 'Root';
+
+    // Take up to 'depth' parts
+    const moduleParts = cleanParts.slice(0, depth);
+    return moduleParts.join('/');
+}
+
+function groupFindingsByModule(findings, depth) {
+    const modules = {};
+
+    findings.forEach(f => {
+        let path = '';
+        if (f.type === 'SAST') {
+            // Use file location, remove line number
+            path = f.location.split(':')[0];
+        } else {
+            // Use target file path (e.g. package-lock.json location)
+            // If raw.Target is not available, try to guess or use 'Unknown'
+            // For Trivy, 'Target' is usually at the top level, but we flattened it.
+            // We need to pass the target info down or infer it.
+            // In our processTrivy, we didn't save the Target path explicitly in a 'path' field,
+            // but we can assume 'location' might be added or we use a fallback.
+            // Let's check processTrivy... it doesn't save location.
+            // We should update processTrivy to save location if possible, 
+            // but for now let's assume SAST is the main target for this feature.
+            // If SCA, we might use the package name as a fallback or just 'Dependencies'.
+            path = 'Dependencies';
+        }
+
+        const moduleName = getModuleFromPath(path, depth);
+
+        if (!modules[moduleName]) {
+            modules[moduleName] = {
+                name: moduleName,
+                path: path, // Representative path
+                findings: [],
+                stats: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 }
+            };
+        }
+
+        modules[moduleName].findings.push(f);
+        if (modules[moduleName].stats[f.severity] !== undefined) {
+            modules[moduleName].stats[f.severity]++;
+        } else {
+            modules[moduleName].stats.UNKNOWN++;
+        }
+    });
+
+    return Object.values(modules).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // --- Filtering & Sorting ---
 
 function applyFilters(type) {
@@ -200,6 +288,11 @@ function renderList(type) {
     const listContainer = document.getElementById(listId);
 
     if (type === 'sast') {
+        if (state.viewMode === 'modules') {
+            renderModules(type);
+            return;
+        }
+
         const start = (s.page - 1) * s.pageSize;
         const end = start + s.pageSize;
         const pageData = s.filtered.slice(start, end);
@@ -285,6 +378,81 @@ function renderList(type) {
         }
     }
     renderPagination(type);
+}
+
+function renderModules(type) {
+    const s = state[type];
+    const listContainer = document.getElementById('sast-list'); // Reusing SAST container
+    const modules = groupFindingsByModule(s.filtered, state.moduleDepth);
+
+    if (modules.length === 0) {
+        listContainer.innerHTML = '<div style="text-align:center; padding: 2rem; color: var(--text-secondary);">No modules found matching filters.</div>';
+        document.getElementById('sast-pagination').innerHTML = '';
+        return;
+    }
+
+    listContainer.innerHTML = `
+        <div class="module-grid">
+            ${modules.map(m => {
+        const total = m.findings.length;
+        // Determine max severity for icon color
+        let maxSev = 'LOW';
+        if (m.stats.CRITICAL > 0) maxSev = 'CRITICAL';
+        else if (m.stats.HIGH > 0) maxSev = 'HIGH';
+        else if (m.stats.MEDIUM > 0) maxSev = 'MEDIUM';
+
+        return `
+                <div class="module-card" onclick="filterByModule('${m.name}')">
+                    <div class="module-header">
+                        <div class="module-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        </div>
+                        <div class="severity-pill ${maxSev.toLowerCase()}" style="transform: scale(0.9); margin-right: -8px;">${maxSev}</div>
+                    </div>
+                    <div class="module-title">${escapeHtml(m.name)}</div>
+                    <div class="module-path">${total} findings</div>
+                    
+                    <div class="module-stats">
+                        ${m.stats.CRITICAL > 0 ? `
+                        <div class="stat-item">
+                            <span class="stat-value critical-color">${m.stats.CRITICAL}</span>
+                            <span class="stat-label">Crit</span>
+                        </div>` : ''}
+                        ${m.stats.HIGH > 0 ? `
+                        <div class="stat-item">
+                            <span class="stat-value high-color">${m.stats.HIGH}</span>
+                            <span class="stat-label">High</span>
+                        </div>` : ''}
+                        ${m.stats.MEDIUM > 0 ? `
+                        <div class="stat-item">
+                            <span class="stat-value medium-color">${m.stats.MEDIUM}</span>
+                            <span class="stat-label">Med</span>
+                        </div>` : ''}
+                         ${m.stats.LOW > 0 ? `
+                        <div class="stat-item">
+                            <span class="stat-value low-color">${m.stats.LOW}</span>
+                            <span class="stat-label">Low</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+                `;
+    }).join('')}
+        </div>
+    `;
+
+    // Hide pagination in module view for now (or implement module pagination)
+    document.getElementById('sast-pagination').innerHTML = '';
+}
+
+function filterByModule(moduleName) {
+    // When clicking a module, switch to list view and filter by that module
+    // For now, let's just switch to list view and maybe set a search filter?
+    // Or just show the list of findings for that module.
+    // A simple way is to set the search input to the module name.
+    const searchInput = document.querySelector('#sast-view .search-input');
+    searchInput.value = moduleName;
+    switchViewMode('list'); // Switch back to list
+    applyFilters('sast'); // Apply filter
 }
 
 function getSeverityIcon(severity) {

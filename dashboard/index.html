@@ -146,6 +146,20 @@
                     <div class="table-header">
                         <h2>Code Vulnerabilities</h2>
                         <div class="table-actions">
+                            <div class="view-controls">
+                                <div class="view-toggle">
+                                    <button class="toggle-btn active" id="view-list-btn"
+                                        onclick="switchViewMode('list')">List</button>
+                                    <button class="toggle-btn" id="view-modules-btn"
+                                        onclick="switchViewMode('modules')">Modules</button>
+                                </div>
+                                <div class="depth-control" id="module-depth-control" style="display: none;">
+                                    <span class="label-text">Depth: <span id="depth-value">2</span></span>
+                                    <input type="range" min="1" max="5" value="2" class="depth-slider"
+                                        oninput="updateModuleDepth(this.value)">
+                                </div>
+                            </div>
+                            <div class="separator"></div>
                             <select class="filter-select" onchange="applyFilters('sast')">
                                 <option value="">All Severities</option>
                                 <option value="CRITICAL">Critical</option>
