@@ -341,11 +341,19 @@ function renderList(type) {
 
         if (state.sast.activeModule) {
             listContainer.innerHTML = `
-                <div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 10px;">
-                    <button class="btn-secondary" onclick="clearModuleFilter()" style="padding: 4px 12px; font-size: 0.8rem;">
-                        ← Back to Modules
-                    </button>
-                    <span style="color: var(--text-secondary);">Filtering by: <strong style="color: var(--text-primary);">${escapeHtml(state.sast.activeModule)}</strong></span>
+                <div class="breadcrumb-nav">
+                    <div class="breadcrumb-item" onclick="resetToRoot()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                        Root
+                    </div>
+                    <span class="breadcrumb-separator">/</span>
+                    <div class="breadcrumb-item" onclick="clearModuleFilter()">
+                        Modules (Depth ${state.moduleDepth})
+                    </div>
+                    <span class="breadcrumb-separator">/</span>
+                    <div class="breadcrumb-item active">
+                        ${escapeHtml(state.sast.activeModule)}
+                    </div>
                 </div>
              `;
         } else {
@@ -509,6 +517,12 @@ function clearModuleFilter() {
     state.sast.activeModule = null;
     switchViewMode('modules');
     applyFilters('sast');
+}
+
+function resetToRoot() {
+    state.sast.activeModule = null;
+    updateModuleDepth(1); // Reset to depth 1 (Root)
+    switchViewMode('modules');
 }
 
 function getSeverityIcon(severity) {
