@@ -1,0 +1,43 @@
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    padding: 1rem 0;
+    transition: all 0.3s ease;
+}
+
+.container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+}
+
+.links {
+    display: none;
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .links {
+        display: flex;
+    }
+}
+
+.links a {
+    font-weight: 500;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.links a:hover {
+    opacity: 1;
+    color: var(--primary);
+}
