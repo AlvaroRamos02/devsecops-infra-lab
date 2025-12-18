@@ -22,7 +22,7 @@ Gracias a Semgrep y Trivy, este laboratorio soporta análisis de seguridad para:
 
 ## 📊 Acceso al Dashboard
 
-El dashboard se despliega automáticamente en el puerto **7890** tras ejecutar el pipeline.
+El dashboard se despliega automáticamente en el puerto **7890** tras ejecutar el pipeline.s
 
 ### Acceso Local
 👉 **[http://localhost:7890](http://localhost:7890)**
