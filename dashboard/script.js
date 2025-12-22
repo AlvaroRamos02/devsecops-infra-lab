@@ -74,6 +74,7 @@ function navigateTo(viewId) {
     // Update Page Title
     const titles = {
         'overview': 'Dashboard Overview',
+        'risk': 'Risk & Value Assessment',
         'sast': 'SAST - Code Analysis',
         'sca-fs': 'SCA - Repository Dependencies',
         'sca-image': 'SCA - Container Images'
