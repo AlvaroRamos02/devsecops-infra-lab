@@ -19,7 +19,7 @@ dist/
 dashboard/data/*.json
 dashboard/data/*.html
 *.tar
-*.json
+
 
 # Env
 .env
