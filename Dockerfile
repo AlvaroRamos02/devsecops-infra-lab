@@ -3,7 +3,6 @@
 # Supports: Python, Node.js, and other common languages
 # ═══════════════════════════════════════════════════════════════
 
-# ══════════════ Python App ══════════════
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -13,21 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for caching
-COPY app/*/requirements.txt ./requirements.txt 2>/dev/null || \
-    COPY app/requirements.txt ./requirements.txt 2>/dev/null || \
-    echo "# No requirements.txt found" > ./requirements.txt
+# Copy application code
+COPY app/ ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || true
+# Find and install Python requirements if they exist
+RUN find . -name requirements.txt -exec pip install --no-cache-dir -r {} \; || echo "No requirements.txt found"
 
-# Copy application code (excluding venv)
-COPY app/ .
-
-# Default command (override as needed)
+# Default command
 CMD ["python", "--version"]
-
-# ══════════════ Notes ══════════════
-# This Dockerfile is intentionally generic to allow Trivy 
-# to scan Python dependencies. For production, customize
-# the CMD and add your specific entrypoint.
