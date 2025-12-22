@@ -6,90 +6,75 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
-permissions:
-  contents: write
-
 jobs:
   # ═══════════════════════════════════════════════════════════════
-  # SAST - Static Application Security Testing (Code Analysis)
+  # Unified Security Pipeline
+  # Runs all checks in a single linear flow to avoid clutter.
   # ═══════════════════════════════════════════════════════════════
-  sast:
-    name: "🔍 SAST (Code Analysis)"
+  security-pipeline:
+    name: "🛡️ DevSecOps Pipeline (SAST + SCA + Image)"
     runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🛡️ Run Semgrep SAST Scan
-        run: |
-          mkdir -p dashboard/data
-          docker run --rm -v "${PWD}:/src" returntocorp/semgrep:latest \
-            semgrep scan --config=auto --json --output=/src/dashboard/data/semgrep-report.json /src/app || true
-          echo "✅ SAST scan complete"
-
-      - name: 📤 Upload SAST Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: sast-report
-          path: dashboard/data/semgrep-report.json
-          retention-days: 5
-
-  # ═══════════════════════════════════════════════════════════════
-  # SCA Repo - Software Composition Analysis (Dependencies)
-  # ═══════════════════════════════════════════════════════════════
-  sca-repo:
-    name: "📦 SCA (Repository Dependencies)"
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🔎 Run Trivy Filesystem Scan
-        run: |
-          mkdir -p dashboard/data
-          docker run --rm -v "${PWD}:/src" aquasec/trivy:latest \
-            fs --format json --output /src/dashboard/data/trivy-fs-report.json /src || true
-          echo "✅ SCA (Repo) scan complete"
-
-      - name: 📤 Upload SCA Repo Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: sca-repo-report
-          path: dashboard/data/trivy-fs-report.json
-          retention-days: 5
-
-  # ═══════════════════════════════════════════════════════════════
-  # SCA Container - Container Image Vulnerability Scan
-  # ═══════════════════════════════════════════════════════════════
-  sca-container:
-    name: "🐳 SCA (Container Image)"
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read # Read-only, no commits to repo
+      
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      
+      - name: 📁 Create Report Directory
+        run: mkdir -p dashboard/data
 
-      - name: 🏗️ Build Docker Image
-        run: docker build -t secureshift:scan . || echo "Docker build failed, skipping image scan"
-
-      - name: 🔎 Run Trivy Image Scan
+      # —————————————————————————————————————————————————————————————
+      # 1. SAST - Static Application Security Testing
+      # —————————————————————————————————————————————————————————————
+      - name: 🛡️ Run SAST (Semgrep)
         run: |
-          mkdir -p dashboard/data
-          if docker images secureshift:scan -q | grep -q .; then
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "${PWD}:/src" aquasec/trivy:latest \
-              image --format json --output /src/dashboard/data/trivy-image-report.json secureshift:scan || true
-          else
-            echo '{"Results":[]}' > dashboard/data/trivy-image-report.json
-          fi
-          echo "✅ SCA (Container) scan complete"
+          echo "::group::Running Semgrep SAST"
+          docker run --rm -v "${PWD}:/src" returntocorp/semgrep:latest \
+            semgrep scan --config=auto --json --output=/src/dashboard/data/semgrep-report.json /src/app || true
+          echo "::endgroup::"
 
-      - name: 📤 Upload SCA Container Report
+      # —————————————————————————————————————————————————————————————
+      # 2. SCA - Repository Dependencies
+      # —————————————————————————————————————————————————————————————
+      - name: 📦 Run SCA Repo (Trivy FS)
+        run: |
+          echo "::group::Running Trivy FS"
+          docker run --rm -v "${PWD}:/src" aquasec/trivy:latest \
+            fs --format json --output /src/dashboard/data/trivy-fs-report.json /src || true
+          echo "::endgroup::"
+
+      # —————————————————————————————————————————————————————————————
+      # 3. Docker Build & Container Scan
+      # —————————————————————————————————————————————————————————————
+      - name: 🏗️ Build App Container
+        run: |
+          echo "::group::Building Docker Image"
+          docker build -t secureshift:scan .
+          echo "::endgroup::"
+
+      - name: 🐳 Run SCA Image (Trivy Image)
+        run: |
+          echo "::group::Running Trivy Image Scan"
+          if docker images secureshift:scan -q | grep -q .; then
+             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "${PWD}:/src" aquasec/trivy:latest \
+               image --format json --output /src/dashboard/data/trivy-image-report.json secureshift:scan || true
+          else
+             echo '{"Results":[]}' > dashboard/data/trivy-image-report.json
+             echo "⚠️ Image build failed or skipped, creating empty report."
+          fi
+          echo "::endgroup::"
+
+      # —————————————————————————————————————————————————————————————
+      # 4. Artifact Upload
+      # —————————————————————————————————————————————————————————————
+      - name: 📊 Upload All Reports (Artifacts)
+        if: always() # Run even if scans fail
         uses: actions/upload-artifact@v4
         with:
-          name: sca-container-report
-          path: dashboard/data/trivy-image-report.json
-          retention-days: 5
-
-
+          name: security-dashboard-complete
+          path: dashboard/data/
+          retention-days: 14

@@ -21,7 +21,7 @@ COPY app/*/requirements.txt ./requirements.txt 2>/dev/null || \
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || true
 
-# Copy application code (excluding venv)s
+# Copy application code (excluding venv)
 COPY app/ .
 
 # Default command (override as needed)
