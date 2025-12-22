@@ -86,6 +86,12 @@ function navigateTo(viewId) {
 function switchViewMode(mode) {
     state.viewMode = mode;
 
+    // Reset module filter when switching to module view to show all modules
+    if (mode === 'modules') {
+        state.sast.activeModule = null;
+        applyFilters('sast');
+    }
+
     // Update buttons
     document.getElementById('view-list-btn').classList.toggle('active', mode === 'list');
     document.getElementById('view-modules-btn').classList.toggle('active', mode === 'modules');
@@ -104,7 +110,9 @@ function switchViewMode(mode) {
 
 function updateModuleDepth(depth) {
     state.moduleDepth = parseInt(depth);
+    state.sast.activeModule = null; // Reset filter when changing depth
     document.getElementById('depth-value').textContent = depth;
+    applyFilters('sast'); // Re-apply filters with new depth logic
     renderList('sast');
 }
 
