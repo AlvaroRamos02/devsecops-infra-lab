@@ -1,7 +1,0 @@
-FROM nginx:stable-alpine
-
-RUN echo 'DevSecOps Infra Lab - Nginx OK' > /usr/share/nginx/html/index.html
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]

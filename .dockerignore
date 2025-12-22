@@ -1,7 +1,0 @@
-
-# .dockerignore
-.git
-.github
-dashboard/data
-app/node_modules
-app/.next
