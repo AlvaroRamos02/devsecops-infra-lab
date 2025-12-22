@@ -6,11 +6,8 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
-# Required for GitHub Pages deployment
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   # ═══════════════════════════════════════════════════════════════
@@ -96,13 +93,13 @@ jobs:
           retention-days: 5
 
   # ═══════════════════════════════════════════════════════════════
-  # Deploy Dashboard to GitHub Pages
+  # Commit Reports - Save results to repository
   # ═══════════════════════════════════════════════════════════════
-  deploy-dashboard:
-    name: "🚀 Deploy Dashboard"
+  commit-reports:
+    name: "💾 Save Reports to Repo"
     runs-on: ubuntu-latest
     needs: [sast, sca-repo, sca-container]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.event_name == 'push'
     
     steps:
       - name: 📥 Checkout Code
@@ -117,18 +114,10 @@ jobs:
       - name: 📋 List Downloaded Reports
         run: ls -la dashboard/data/
 
-      - name: 🔧 Commit Reports to Repo
+      - name: 💾 Commit Reports to Repo
         run: |
           git config --local user.email "secureshift-bot@github.com"
           git config --local user.name "SecureShift Bot"
           git add dashboard/data/*.json
           git diff --staged --quiet || git commit -m "📊 Update security scan results [skip ci]"
-          git push || echo "Nothing to push"
-
-      - name: 🚀 Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dashboard
-          publish_branch: gh-pages
-          force_orphan: true
+          git push
