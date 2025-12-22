@@ -1,8 +1,8 @@
-# DevSecOps Infra Lab 🛡️
+# SecureShift 🛡️
 
-**Integración de Seguridad Automatizada para tu Proyecto.**
+**Automated Security Integration for Your Projects.**
 
-Este repositorio está diseñado para ser integrado directamente en tu flujo de trabajo. Convierte cualquier aplicación en una aplicación segura analizando código y dependencias automáticamente en cada push.
+SecureShift transforms any application into a secure one by automatically analyzing code and dependencies on every push. Simple, powerful, enterprise-ready.
 
 ---
 

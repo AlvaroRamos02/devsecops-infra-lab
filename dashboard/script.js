@@ -1,3 +1,39 @@
+// === SecureShift Configuration ===
+const APP_NAME = "SecureShift";
+const APP_VERSION = "1.0";
+
+// Default cost multipliers (can be overridden by user in localStorage)
+const DEFAULT_COST_SETTINGS = {
+    CRITICAL: 25000,
+    HIGH: 10000,
+    MEDIUM: 2000,
+    LOW: 500
+};
+
+// Default scoring weights
+const DEFAULT_SCORE_SETTINGS = {
+    CRITICAL: 15,
+    HIGH: 5,
+    MEDIUM: 2,
+    LOW: 0.5
+};
+
+// Load user settings from localStorage or use defaults
+function loadSettings() {
+    const savedCosts = localStorage.getItem('secureshift_costs');
+    const savedScores = localStorage.getItem('secureshift_scores');
+    return {
+        costs: savedCosts ? JSON.parse(savedCosts) : { ...DEFAULT_COST_SETTINGS },
+        scores: savedScores ? JSON.parse(savedScores) : { ...DEFAULT_SCORE_SETTINGS }
+    };
+}
+
+// Save settings to localStorage
+function saveSettings(costs, scores) {
+    localStorage.setItem('secureshift_costs', JSON.stringify(costs));
+    localStorage.setItem('secureshift_scores', JSON.stringify(scores));
+}
+
 // State management
 const state = {
     sast: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
@@ -9,8 +45,10 @@ const state = {
     viewMode: 'list', // 'list' or 'modules'
     moduleDepth: 2, // Default depth for module grouping
     activeModule: null, // Current module filter for drill-down
-    overviewFilter: 'ALL' // 'ALL', 'SAST', 'SCA'
+    overviewFilter: 'ALL', // 'ALL', 'SAST', 'SCA'
+    settings: loadSettings() // User-configurable settings
 };
+
 
 const SEVERITY_WEIGHTS = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'UNKNOWN': 0 };
 
@@ -31,8 +69,107 @@ document.addEventListener('DOMContentLoaded', () => {
         applyFilters('scaImage');
 
         updateOverview();
+        initializeSettingsForm(); // Load saved settings into form
     });
 });
+
+// Initialize settings form with current values
+function initializeSettingsForm() {
+    const { costs, scores } = state.settings;
+
+    // Populate cost inputs
+    const costCritical = document.getElementById('cost-critical');
+    const costHigh = document.getElementById('cost-high');
+    const costMedium = document.getElementById('cost-medium');
+    const costLow = document.getElementById('cost-low');
+
+    if (costCritical) costCritical.value = costs.CRITICAL;
+    if (costHigh) costHigh.value = costs.HIGH;
+    if (costMedium) costMedium.value = costs.MEDIUM;
+    if (costLow) costLow.value = costs.LOW;
+
+    // Populate score inputs  
+    const scoreCritical = document.getElementById('score-critical');
+    const scoreHigh = document.getElementById('score-high');
+    const scoreMedium = document.getElementById('score-medium');
+    const scoreLow = document.getElementById('score-low');
+
+    if (scoreCritical) scoreCritical.value = scores.CRITICAL;
+    if (scoreHigh) scoreHigh.value = scores.HIGH;
+    if (scoreMedium) scoreMedium.value = scores.MEDIUM;
+    if (scoreLow) scoreLow.value = scores.LOW;
+}
+
+// Update settings from form inputs (called on change)
+function updateSettings() {
+    // Read cost values
+    const newCosts = {
+        CRITICAL: parseFloat(document.getElementById('cost-critical')?.value) || 0,
+        HIGH: parseFloat(document.getElementById('cost-high')?.value) || 0,
+        MEDIUM: parseFloat(document.getElementById('cost-medium')?.value) || 0,
+        LOW: parseFloat(document.getElementById('cost-low')?.value) || 0
+    };
+
+    // Read score values
+    const newScores = {
+        CRITICAL: parseFloat(document.getElementById('score-critical')?.value) || 0,
+        HIGH: parseFloat(document.getElementById('score-high')?.value) || 0,
+        MEDIUM: parseFloat(document.getElementById('score-medium')?.value) || 0,
+        LOW: parseFloat(document.getElementById('score-low')?.value) || 0
+    };
+
+    // Validate: costs must be non-negative
+    for (const key of Object.keys(newCosts)) {
+        if (newCosts[key] < 0) newCosts[key] = 0;
+    }
+
+    // Validate: scores must be in range 0-100
+    for (const key of Object.keys(newScores)) {
+        if (newScores[key] < 0) newScores[key] = 0;
+        if (newScores[key] > 100) newScores[key] = 100;
+    }
+
+    // Update state
+    state.settings.costs = newCosts;
+    state.settings.scores = newScores;
+
+    // Persist to localStorage
+    saveSettings(newCosts, newScores);
+
+    // Recalculate dashboard
+    updateOverview();
+
+    // Show saved indicator
+    const savedIndicator = document.getElementById('settings-saved');
+    if (savedIndicator) {
+        savedIndicator.style.opacity = '1';
+        setTimeout(() => { savedIndicator.style.opacity = '0'; }, 2000);
+    }
+}
+
+// Reset settings to defaults
+function resetSettings() {
+    state.settings.costs = { ...DEFAULT_COST_SETTINGS };
+    state.settings.scores = { ...DEFAULT_SCORE_SETTINGS };
+
+    // Clear localStorage
+    localStorage.removeItem('secureshift_costs');
+    localStorage.removeItem('secureshift_scores');
+
+    // Update form
+    initializeSettingsForm();
+
+    // Recalculate dashboard
+    updateOverview();
+
+    // Show saved indicator
+    const savedIndicator = document.getElementById('settings-saved');
+    if (savedIndicator) {
+        savedIndicator.style.opacity = '1';
+        setTimeout(() => { savedIndicator.style.opacity = '0'; }, 2000);
+    }
+}
+
 
 function updateOverview() {
     const allFindings = [...state.sast.data, ...state.scaFs.data, ...state.scaImage.data];
@@ -737,7 +874,7 @@ function exportPDF() {
 
     // Title
     doc.setFontSize(18);
-    doc.text("DevSecOps Security Report", 14, 20);
+    doc.text(`${APP_NAME} Security Report`, 14, 20);
     doc.setFontSize(11);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
     doc.line(14, 32, 196, 32);
@@ -859,19 +996,12 @@ function updateSummary(findings) {
         UNKNOWN: findings.filter(f => f.severity === 'UNKNOWN').length
     };
 
-    // --- NEW: Security Grade & Financial Risk Calculation ---
-
-    // 1. Financial Risk Calculation (Estimated)
-    // Based on industry standard remediation costs per vulnerability
-    const COST_CRITICAL = 25000; // $25k avg breach cost/fix
-    const COST_HIGH = 10000;
-    const COST_MEDIUM = 2000;
-    const COST_LOW = 500;
-
-    const riskTotal = (stats.CRITICAL * COST_CRITICAL) +
-        (stats.HIGH * COST_HIGH) +
-        (stats.MEDIUM * COST_MEDIUM) +
-        (stats.LOW * COST_LOW);
+    // --- Financial Risk Calculation using user settings ---
+    const costs = state.settings.costs;
+    const riskTotal = (stats.CRITICAL * costs.CRITICAL) +
+        (stats.HIGH * costs.HIGH) +
+        (stats.MEDIUM * costs.MEDIUM) +
+        (stats.LOW * costs.LOW);
 
     // Format currency
     const formatter = new Intl.NumberFormat('en-US', {
@@ -889,13 +1019,13 @@ function updateSummary(findings) {
         else riskElement.style.color = '#10b981'; // Green
     }
 
-    // 2. Security Grade Calculation (A-F)
-    // Base score 100. Deduct points per vulnerability.
+    // --- Security Grade Calculation using user settings ---
+    const scores = state.settings.scores;
     let score = 100;
-    score -= (stats.CRITICAL * 15);
-    score -= (stats.HIGH * 5);
-    score -= (stats.MEDIUM * 2);
-    score -= (stats.LOW * 0.5); // Minimal penalty
+    score -= (stats.CRITICAL * scores.CRITICAL);
+    score -= (stats.HIGH * scores.HIGH);
+    score -= (stats.MEDIUM * scores.MEDIUM);
+    score -= (stats.LOW * scores.LOW);
 
     if (score < 0) score = 0;
 
@@ -935,12 +1065,11 @@ function updateSummary(findings) {
         gradeElement.style.background = gradient;
         gradeElement.style.webkitBackgroundClip = 'text';
         gradeElement.style.webkitTextFillColor = 'transparent';
-        gradeElement.style.textShadow = `0 4px 12px ${gradeColor[0]}40`; // 40 is hex opacity
+        gradeElement.style.textShadow = `0 4px 12px ${gradeColor[0]}40`;
 
         if (gradeIcon) gradeIcon.setAttribute('stroke', gradeColor[1]);
-        if (glowEffect) glowEffect.style.background = `radial-gradient(circle, ${gradeColor[0]}26 0%, rgba(0,0,0,0) 70%)`; // 26 is hex opacity (~15%)
+        if (glowEffect) glowEffect.style.background = `radial-gradient(circle, ${gradeColor[0]}26 0%, rgba(0,0,0,0) 70%)`;
     }
-
 
     // Update Counts (DOM)
     document.getElementById('total-count').textContent = findings.length;
@@ -948,7 +1077,7 @@ function updateSummary(findings) {
     document.getElementById('high-count').textContent = stats.HIGH;
     document.getElementById('medium-count').textContent = stats.MEDIUM;
 
-    // The bar chart should still reflect active findings, so we re-calculate counts for that.
+    // Progress bars for severity distribution
     const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
     const activeCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
     activeFindings.forEach(f => {
@@ -960,13 +1089,15 @@ function updateSummary(findings) {
 
     const setBar = (sev, count) => {
         const pct = totalActive > 0 ? (count / totalActive) * 100 : 0;
-        document.querySelector(`.${sev.toLowerCase()}-bg`).style.width = `${pct}%`;
+        const bar = document.querySelector(`.${sev.toLowerCase()}-bg`);
+        if (bar) bar.style.width = `${pct}%`;
     };
 
-    setBar('CRITICAL', counts.CRITICAL);
-    setBar('HIGH', counts.HIGH);
-    setBar('MEDIUM', counts.MEDIUM);
+    setBar('CRITICAL', activeCounts.CRITICAL);
+    setBar('HIGH', activeCounts.HIGH);
+    setBar('MEDIUM', activeCounts.MEDIUM);
 }
+
 
 function renderCharts(findings) {
     const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));

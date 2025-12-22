@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# DevSecOps Infra Lab - Unified Scanning Script
+# SecureShift - Unified Security Scanning Script
 # Usage: ./scan.sh
 # This script runs Semgrep (SAST) and Trivy (SCA) using Docker.
 
@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}=========================================${NC}"
-echo -e "${BLUE}    DevSecOps Security Scanner 🛡️${NC}"
+echo -e "${BLUE}    SecureShift Security Scanner 🛡️${NC}"
 echo -e "${BLUE}=========================================${NC}"
 
 # Check Docker
@@ -60,7 +60,7 @@ fi
 
 # 3. Docker Build & SCA Image
 echo -e "\n${YELLOW}[*] Building Docker image for scanning...${NC}"
-IMAGE_NAME="devsecops-lab:scan"
+IMAGE_NAME="secureshift:scan"
 docker build -t $IMAGE_NAME .
 
 if [ $? -eq 0 ]; then

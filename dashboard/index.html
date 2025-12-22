@@ -28,7 +28,7 @@
                             clip-rule="evenodd" />
                     </svg>
                 </div>
-                <h2>DevSecOps <span class="beta-tag">PRO</span></h2>
+                <h2>SecureShift <span class="beta-tag">PRO</span></h2>
             </div>
 
             <div class="nav-links">
@@ -238,89 +238,101 @@
                         </div>
                     </section>
 
-                    <!-- Explanation Table -->
+                    <!-- Editable Settings -->
                     <div class="card" style="background: #0f172a; border: 1px solid var(--border-color);">
-                        <h3 style="margin-bottom: 20px; font-size: 1.1rem; color: var(--text-primary);">How is this
-                            calculated?</h3>
+                        <h3 style="margin-bottom: 20px; font-size: 1.1rem; color: var(--text-primary);">
+                            ⚙️ Customize Risk Model
+                        </h3>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
 
-                            <!-- Scoring Logic -->
+                            <!-- Score Deduction Settings -->
                             <div>
-                                <h4 style="margin-bottom: 15px; color: var(--accent-color);">Security Grade Logic</h4>
-                                <p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem;">
-                                    Starting Score: <strong>100 Points</strong></p>
-                                <ul
-                                    style="list-style: none; color: var(--text-secondary); font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px;">
-                                    <li
-                                        style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                                        <span><span class="severity-pill critical"
-                                                style="transform: scale(0.8); margin:0;">CRITICAL</span>
-                                            Deduction</span>
-                                        <span style="color: #ff4757;">-15 pts each</span>
-                                    </li>
-                                    <li
-                                        style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                                        <span><span class="severity-pill high"
-                                                style="transform: scale(0.8); margin:0;">HIGH</span> Deduction</span>
-                                        <span style="color: #ffae42;">-5 pts each</span>
-                                    </li>
-                                    <li
-                                        style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                                        <span><span class="severity-pill medium"
-                                                style="transform: scale(0.8); margin:0;">MEDIUM</span> Deduction</span>
-                                        <span style="color: #ffd86a;">-2 pts each</span>
-                                    </li>
-                                </ul>
+                                <h4 style="margin-bottom: 15px; color: var(--accent-color);">Grade Deductions (pts)</h4>
+                                <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.85rem;">
+                                    Base Score: <strong>100</strong>. Points deducted per vulnerability:
+                                </p>
+                                <div class="settings-grid">
+                                    <label class="settings-row">
+                                        <span class="severity-pill critical" style="min-width: 70px;">CRITICAL</span>
+                                        <input type="number" id="score-critical" class="settings-input" min="0"
+                                            max="100" step="1" value="15" onchange="updateSettings()">
+                                        <span>pts</span>
+                                    </label>
+                                    <label class="settings-row">
+                                        <span class="severity-pill high" style="min-width: 70px;">HIGH</span>
+                                        <input type="number" id="score-high" class="settings-input" min="0" max="100"
+                                            step="0.5" value="5" onchange="updateSettings()">
+                                        <span>pts</span>
+                                    </label>
+                                    <label class="settings-row">
+                                        <span class="severity-pill medium" style="min-width: 70px;">MEDIUM</span>
+                                        <input type="number" id="score-medium" class="settings-input" min="0" max="100"
+                                            step="0.5" value="2" onchange="updateSettings()">
+                                        <span>pts</span>
+                                    </label>
+                                    <label class="settings-row">
+                                        <span class="severity-pill low" style="min-width: 70px;">LOW</span>
+                                        <input type="number" id="score-low" class="settings-input" min="0" max="100"
+                                            step="0.1" value="0.5" onchange="updateSettings()">
+                                        <span>pts</span>
+                                    </label>
+                                </div>
                                 <div style="margin-top: 15px; font-size: 0.85rem; color: var(--text-secondary);">
                                     <span style="color: #4ade80; font-weight: bold;">A (90-100)</span> •
                                     <span style="color: #3b82f6; font-weight: bold;">B (80-89)</span> •
                                     <span style="color: #eab308; font-weight: bold;">C (70-79)</span> •
                                     <span style="color: #f97316; font-weight: bold;">D (60-69)</span> •
-                                    <span style="color: #ef4444; font-weight: bold;">F (< 60)</span>
+                                    <span style="color: #ef4444; font-weight: bold;">F (&lt;60)</span>
                                 </div>
                             </div>
 
-                            <!-- Cost Logic -->
+                            <!-- Cost Multiplier Settings -->
                             <div>
-                                <h4 style="margin-bottom: 15px; color: #38bdf8;">Financial Risk Model</h4>
-                                <p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 0.9rem;">
-                                    Estimated Breach & Remediation Cost:</p>
-                                <ul
-                                    style="list-style: none; color: var(--text-secondary); font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px;">
-                                    <li
-                                        style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                                        <span><span class="severity-pill critical"
-                                                style="transform: scale(0.8); margin:0;">CRITICAL</span> Cost</span>
-                                        <span style="color: var(--text-primary);">$25,000 / vuln</span>
-                                    </li>
-                                    <li
-                                        style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                                        <span><span class="severity-pill high"
-                                                style="transform: scale(0.8); margin:0;">HIGH</span> Cost</span>
-                                        <span style="color: var(--text-primary);">$10,000 / vuln</span>
-                                    </li>
-                                    <li
-                                        style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                                        <span><span class="severity-pill medium"
-                                                style="transform: scale(0.8); margin:0;">MEDIUM</span> Cost</span>
-                                        <span style="color: var(--text-primary);">$2,000 / vuln</span>
-                                    </li>
-                                    <li
-                                        style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                                        <span><span class="severity-pill low"
-                                                style="transform: scale(0.8); margin:0;">LOW</span> Cost</span>
-                                        <span style="color: var(--text-primary);">$500 / vuln</span>
-                                    </li>
-                                </ul>
+                                <h4 style="margin-bottom: 15px; color: #38bdf8;">Cost Multipliers ($/vuln)</h4>
+                                <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.85rem;">
+                                    Estimated cost per vulnerability by severity:
+                                </p>
+                                <div class="settings-grid">
+                                    <label class="settings-row">
+                                        <span class="severity-pill critical" style="min-width: 70px;">CRITICAL</span>
+                                        <span style="color: var(--text-secondary);">$</span>
+                                        <input type="number" id="cost-critical" class="settings-input" min="0"
+                                            step="1000" value="25000" onchange="updateSettings()">
+                                    </label>
+                                    <label class="settings-row">
+                                        <span class="severity-pill high" style="min-width: 70px;">HIGH</span>
+                                        <span style="color: var(--text-secondary);">$</span>
+                                        <input type="number" id="cost-high" class="settings-input" min="0" step="500"
+                                            value="10000" onchange="updateSettings()">
+                                    </label>
+                                    <label class="settings-row">
+                                        <span class="severity-pill medium" style="min-width: 70px;">MEDIUM</span>
+                                        <span style="color: var(--text-secondary);">$</span>
+                                        <input type="number" id="cost-medium" class="settings-input" min="0" step="100"
+                                            value="2000" onchange="updateSettings()">
+                                    </label>
+                                    <label class="settings-row">
+                                        <span class="severity-pill low" style="min-width: 70px;">LOW</span>
+                                        <span style="color: var(--text-secondary);">$</span>
+                                        <input type="number" id="cost-low" class="settings-input" min="0" step="50"
+                                            value="500" onchange="updateSettings()">
+                                    </label>
+                                </div>
                                 <p style="margin-top: 15px; font-size: 0.8rem; color: #64748b;">
-                                    *Estimates based on specific industry averages for data breach impact and tech debt
-                                    remediation time.
+                                    *Customize based on your organization's risk tolerance.
                                 </p>
                             </div>
 
                         </div>
+                        <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end;">
+                            <button class="action-btn outline" onclick="resetSettings()">Reset to Defaults</button>
+                            <span id="settings-saved"
+                                style="color: #4ade80; font-size: 0.85rem; align-self: center; opacity: 0; transition: opacity 0.3s;">✓
+                                Saved</span>
+                        </div>
                     </div>
                 </div>
+
 
                 <!-- SAST View -->
                 <div id="sast-view" class="view-section">
