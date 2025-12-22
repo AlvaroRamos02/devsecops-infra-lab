@@ -81,6 +81,7 @@ function navigateTo(viewId) {
     document.getElementById('page-title').textContent = titles[viewId] || 'Dashboard';
 }
 
+
 // --- View Mode & Depth Control ---
 
 function switchViewMode(mode) {
@@ -848,23 +849,116 @@ function exportData() {
 
 // --- Utils ---
 function updateSummary(findings) {
-    const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
+    // Calculate Stats based on ALL findings for overall summary
+    const stats = {
+        CRITICAL: findings.filter(f => f.severity === 'CRITICAL').length,
+        HIGH: findings.filter(f => f.severity === 'HIGH').length,
+        MEDIUM: findings.filter(f => f.severity === 'MEDIUM').length,
+        LOW: findings.filter(f => f.severity === 'LOW').length,
+        UNKNOWN: findings.filter(f => f.severity === 'UNKNOWN').length
+    };
 
-    const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
-    activeFindings.forEach(f => {
-        const sev = f.severity;
-        if (counts[sev] !== undefined) counts[sev]++;
-        else counts.UNKNOWN++;
+    // --- NEW: Security Grade & Financial Risk Calculation ---
+
+    // 1. Financial Risk Calculation (Estimated)
+    // Based on industry standard remediation costs per vulnerability
+    const COST_CRITICAL = 25000; // $25k avg breach cost/fix
+    const COST_HIGH = 10000;
+    const COST_MEDIUM = 2000;
+    const COST_LOW = 500;
+
+    const riskTotal = (stats.CRITICAL * COST_CRITICAL) +
+        (stats.HIGH * COST_HIGH) +
+        (stats.MEDIUM * COST_MEDIUM) +
+        (stats.LOW * COST_LOW);
+
+    // Format currency
+    const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
     });
 
-    const total = activeFindings.length;
-    document.getElementById('total-count').textContent = total;
-    document.getElementById('critical-count').textContent = counts.CRITICAL;
-    document.getElementById('high-count').textContent = counts.HIGH;
-    document.getElementById('medium-count').textContent = counts.MEDIUM;
+    const riskElement = document.getElementById('financial-risk');
+    if (riskElement) {
+        riskElement.textContent = formatter.format(riskTotal);
+        // Color coding for risk
+        if (riskTotal > 100000) riskElement.style.color = '#ef4444'; // Red
+        else if (riskTotal > 0) riskElement.style.color = '#f59e0b'; // Amber
+        else riskElement.style.color = '#10b981'; // Green
+    }
+
+    // 2. Security Grade Calculation (A-F)
+    // Base score 100. Deduct points per vulnerability.
+    let score = 100;
+    score -= (stats.CRITICAL * 15);
+    score -= (stats.HIGH * 5);
+    score -= (stats.MEDIUM * 2);
+    score -= (stats.LOW * 0.5); // Minimal penalty
+
+    if (score < 0) score = 0;
+
+    let grade = 'A';
+    let status = 'Excellent Standing';
+    let gradeColor = ['#4ade80', '#22c55e']; // Green
+
+    if (score < 60) {
+        grade = 'F';
+        status = 'Critical Risk';
+        gradeColor = ['#ef4444', '#dc2626']; // Red
+    } else if (score < 70) {
+        grade = 'D';
+        status = 'Significant Issues';
+        gradeColor = ['#f97316', '#ea580c']; // Orange
+    } else if (score < 80) {
+        grade = 'C';
+        status = 'Needs Improvement';
+        gradeColor = ['#eab308', '#ca8a04']; // Yellow
+    } else if (score < 90) {
+        grade = 'B';
+        status = 'Good Standing';
+        gradeColor = ['#3b82f6', '#2563eb']; // Blue
+    }
+
+    const gradeElement = document.getElementById('security-grade');
+    const statusElement = document.getElementById('security-status');
+    const gradeIcon = document.querySelector('.grade-icon svg');
+    const glowEffect = document.querySelector('.glow-effect');
+
+    if (gradeElement) {
+        gradeElement.textContent = grade;
+        statusElement.textContent = status;
+
+        // Dynamic Styling
+        const gradient = `linear-gradient(to right, ${gradeColor[0]}, ${gradeColor[1]})`;
+        gradeElement.style.background = gradient;
+        gradeElement.style.webkitBackgroundClip = 'text';
+        gradeElement.style.webkitTextFillColor = 'transparent';
+        gradeElement.style.textShadow = `0 4px 12px ${gradeColor[0]}40`; // 40 is hex opacity
+
+        if (gradeIcon) gradeIcon.setAttribute('stroke', gradeColor[1]);
+        if (glowEffect) glowEffect.style.background = `radial-gradient(circle, ${gradeColor[0]}26 0%, rgba(0,0,0,0) 70%)`; // 26 is hex opacity (~15%)
+    }
+
+
+    // Update Counts (DOM)
+    document.getElementById('total-count').textContent = findings.length;
+    document.getElementById('critical-count').textContent = stats.CRITICAL;
+    document.getElementById('high-count').textContent = stats.HIGH;
+    document.getElementById('medium-count').textContent = stats.MEDIUM;
+
+    // The bar chart should still reflect active findings, so we re-calculate counts for that.
+    const activeFindings = findings.filter(f => !state.dismissed.includes(f.uuid));
+    const activeCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
+    activeFindings.forEach(f => {
+        const sev = f.severity;
+        if (activeCounts[sev] !== undefined) activeCounts[sev]++;
+        else activeCounts.UNKNOWN++;
+    });
+    const totalActive = activeFindings.length;
 
     const setBar = (sev, count) => {
-        const pct = total > 0 ? (count / total) * 100 : 0;
+        const pct = totalActive > 0 ? (count / totalActive) * 100 : 0;
         document.querySelector(`.${sev.toLowerCase()}-bg`).style.width = `${pct}%`;
     };
 
