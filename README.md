@@ -1,57 +1,72 @@
 # DevSecOps Infra Lab 🛡️
 
-Laboratorio profesional de DevSecOps para practicar CI/CD y seguridad con un dashboard centralizado y fácil de usar.
+**Integración de Seguridad Automatizada para tu Proyecto.**
 
-## 🚀 Características
+Este repositorio está diseñado para ser integrado directamente en tu flujo de trabajo. Convierte cualquier aplicación en una aplicación segura analizando código y dependencias automáticamente en cada push.
 
--   **Dashboard Profesional**: Interfaz moderna (Dark Mode) con panel central de métricas.
--   **Análisis Completo**:
-    -   **SAST (Código)**: Detecta vulnerabilidades en tu código fuente (Semgrep).
-    -   **SCA (Dependencias)**: Analiza librerías vulnerables en tu repositorio (Trivy FS).
-    -   **SCA (Imagen)**: Escanea la imagen Docker final en busca de fallos (Trivy Image).
--   **Remediación Inteligente**: Sugerencias automáticas de "Cómo solucionar" para cada hallazgo.
--   **Acceso en Red**: Accede al dashboard desde cualquier dispositivo en tu red local.
+---
 
-## 🛠️ Tecnologías Soportadas
+## 📂 Estructura Simple
 
-Gracias a Semgrep y Trivy, este laboratorio soporta análisis de seguridad para:
+Solo necesitas preocuparte por 3 carpetas:
 
--   **Lenguajes**: Python, JavaScript/TypeScript, Java, Go, Ruby, PHP, C#, etc.
--   **IaC**: Dockerfiles, Kubernetes YAML, Terraform.
--   **Secretos**: Detección de credenciales hardcodeadas.
+-   `app/` 👉 **TU CÓDIGO**. Pon aquí tu proyecto (Node.js, Python, Java, etc.).
+-   `dashboard/` 👉 **VISUALIZACIÓN**. Panel web local para ver tus resultados.
+-   `.github/` 👉 **AUTOMATIZACIÓN**. Define que la seguridad se ejecute sola.
 
-## 📊 Acceso al Dashboard
+---
 
-El dashboard se despliega automáticamente en el puerto **7890** tras ejecutar el pipeline.s
+## 🚀 Cómo Empezar
 
-### Acceso Local
-👉 **[http://localhost:7890](http://localhost:7890)**
+### 1. Pon tu código
+Simplemente copia el código fuente de tu aplicación dentro de la carpeta `app/`.
 
-### Acceso desde la Red (LAN)
-Puedes acceder desde tu móvil u otro PC usando la IP de tu máquina:
-👉 **`http://<TU_IP_LOCAL>:7890`**
-
-> **Nota**: Asegúrate de que el puerto 7890 no esté bloqueado por tu firewall.
-
-## ⚙️ Ejecución Manual (Quick Start)
-
-La forma más rápida de ejecutar todos los análisis y ver el dashboard:
-
+### 2. Sube a GitHub
+Haz tus commits y push de forma normal.
 ```bash
-# 1. Ejecutar análisis
-./scan.sh
-
-# 2. Levantar Dashboard
-docker-compose up -d dashboard
+git add .
+git commit -m "feat: mi nueva app segura"
+git push origin main
 ```
 
-Accede a: [http://localhost:7890](http://localhost:7890)
+**¡Eso es todo!** GitHub Actions detectará el cambio y ejecutará automáticamente:
+1.  **SAST** (Semgrep): Busca vulnerabilidades en tu código.
+2.  **SCA** (Trivy): Busca librerías viejas o peligrosas.
+3.  **Reporte PDF**: Genera un informe profesional con los hallazgos.
+
+---
+
+## � Flujo Automático
+
+Cuando haces `git push`:
+1.  GitHub Actions ejecuta los análisis de seguridad.
+2.  Si encuetra nuevos vulnerabilidades, **el bot actualiza los archivos JSON en el repositorio automáticamente**.
+3.  Tú recibes los resultados haciendo `git pull`.
+
+---
 
 
-## 📝 Estructura del Proyecto
+## ⚡ Modo "Magic Sync" (Opcional)
 
--   `.github/workflows`: Pipelines de CI/CD.
--   `dashboard/`: Código fuente del dashboard (HTML/JS/CSS).
--   `app/`: Aplicación de ejemplo vulnerable.
--   `INTEGRATION_MANUAL.md`: Guía completa de integración para clientes (GitHub, GitLab, Jenkins).
+Si quieres que **tu dashboard local se actualice solo** sin tener que hacer `git pull`, debes configurar tu ordenador como un **Self-Hosted Runner**.
 
+1.  Ve a tu repo en GitHub -> Settings -> Actions -> Runners -> New self-hosted runner.
+2.  Sigue las instrucciones para instalarlo en tu PC (Linux/Mac/Windows).
+3.  Edita `.github/workflows/devsecops.yml` y cambia:
+    ```yaml
+    runs-on: self-hosted  # En lugar de ubuntu-latest
+    ```
+    
+**Resultado**: Cuando hagas `push`, el análisis correrá en TU máquina, actualizará los archivos de `dashboard/data` localmente y tu dashboard (localhost:7890) mostrará los cambios al instante.
+
+---
+
+## 🛠️ Ejecución Local (Opcional)
+
+Si quieres probar antes de subir:
+
+```bash
+./scan.sh
+```
+
+Esto generará los reportes y el PDF en `dashboard/data/`.

@@ -727,6 +727,83 @@ function toggleDismissed(type) {
     }
 }
 
+// --- Export ---
+
+function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text("DevSecOps Security Report", 14, 20);
+    doc.setFontSize(11);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+    doc.line(14, 32, 196, 32);
+
+    // Filtered Content
+    const allFiltered = [
+        ...state.sast.filtered,
+        ...state.scaFs.filtered,
+        ...state.scaImage.filtered
+    ];
+
+    // Stats
+    const stats = {
+        CRITICAL: allFiltered.filter(f => f.severity === 'CRITICAL').length,
+        HIGH: allFiltered.filter(f => f.severity === 'HIGH').length,
+        MEDIUM: allFiltered.filter(f => f.severity === 'MEDIUM').length,
+        LOW: allFiltered.filter(f => f.severity === 'LOW').length
+    };
+
+    // Summary Table
+    doc.autoTable({
+        startY: 35,
+        head: [['Metric', 'Count']],
+        body: [
+            ['Total Issues', allFiltered.length],
+            ['Critical', stats.CRITICAL],
+            ['High', stats.HIGH],
+            ['Medium', stats.MEDIUM],
+            ['Low', stats.LOW]
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }
+    });
+
+    // Findings Table
+    const tableBody = allFiltered.map(f => [
+        f.severity,
+        f.type,
+        f.id,
+        f.message.substring(0, 50) + (f.message.length > 50 ? '...' : ''),
+        f.package || f.location.split('/').pop()
+    ]);
+
+    doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 10,
+        head: [['Severity', 'Type', 'ID', 'Message', 'Location/Pkg']],
+        body: tableBody,
+        columnStyles: {
+            0: { fontStyle: 'bold' } // Severity bold
+        },
+        willDrawCell: function (data) {
+            if (data.section === 'body' && data.column.index === 0) {
+                const sev = data.cell.raw;
+                if (sev === 'CRITICAL') doc.setTextColor(231, 76, 60);
+                else if (sev === 'HIGH') doc.setTextColor(230, 126, 34);
+                else if (sev === 'MEDIUM') doc.setTextColor(241, 196, 15);
+                else if (sev === 'LOW') doc.setTextColor(52, 152, 219);
+            }
+        },
+        didDrawCell: function (data) {
+            // Reset color
+            doc.setTextColor(0, 0, 0);
+        }
+    });
+
+    doc.save(`security_report_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
 function exportData() {
     const allFiltered = [
         ...state.sast.filtered,
@@ -767,6 +844,7 @@ function exportData() {
     link.click();
     document.body.removeChild(link);
 }
+
 
 // --- Utils ---
 function updateSummary(findings) {

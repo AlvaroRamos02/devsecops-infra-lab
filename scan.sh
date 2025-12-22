@@ -83,6 +83,7 @@ else
     echo -e "${RED}[✘] Docker build failed. Skipping Image Scan.${NC}"
 fi
 
+
 echo -e "\n${BLUE}=========================================${NC}"
 echo -e "${GREEN}All scans finished! Reports are in: dashboard/data/${NC}"
 echo -e "${BLUE}To view dashboard:${NC}"
