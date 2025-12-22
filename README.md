@@ -1,72 +1,88 @@
 # SecureShift 🛡️
 
-**Automated Security Integration for Your Projects.**
-
-SecureShift transforms any application into a secure one by automatically analyzing code and dependencies on every push. Simple, powerful, enterprise-ready.
+**Seguridad automatizada para tu código. Cero configuración.**
 
 ---
 
-## 📂 Estructura Simple
+## 🚀 Cómo usar (3 pasos)
 
-Solo necesitas preocuparte por 3 carpetas:
+### 1. Copia SecureShift a tu repo
+```bash
+# Copia estas carpetas a tu repositorio:
+├── .github/workflows/devsecops.yml
+├── dashboard/
+└── Dockerfile
+```
 
--   `app/` 👉 **TU CÓDIGO**. Pon aquí tu proyecto (Node.js, Python, Java, etc.).
--   `dashboard/` 👉 **VISUALIZACIÓN**. Panel web local para ver tus resultados.
--   `.github/` 👉 **AUTOMATIZACIÓN**. Define que la seguridad se ejecute sola.
+### 2. Pon tu código en `app/`
+```bash
+# Tu aplicación (Python, Node, Java, etc.)
+app/
+└── tu-proyecto/
+```
 
----
-
-## 🚀 Cómo Empezar
-
-### 1. Pon tu código
-Simplemente copia el código fuente de tu aplicación dentro de la carpeta `app/`.
-
-### 2. Sube a GitHub
-Haz tus commits y push de forma normal.
+### 3. Haz push
 ```bash
 git add .
-git commit -m "feat: mi nueva app segura"
-git push origin main
+git commit -m "Add SecureShift"
+git push
 ```
 
-**¡Eso es todo!** GitHub Actions detectará el cambio y ejecutará automáticamente:
-1.  **SAST** (Semgrep): Busca vulnerabilidades en tu código.
-2.  **SCA** (Trivy): Busca librerías viejas o peligrosas.
-3.  **Reporte PDF**: Genera un informe profesional con los hallazgos.
+**¡Listo!** Los análisis corren automáticamente.
 
 ---
 
-## � Flujo Automático
+## 📊 Ver Resultados
 
-Cuando haces `git push`:
-1.  GitHub Actions ejecuta los análisis de seguridad.
-2.  Si encuetra nuevos vulnerabilidades, **el bot actualiza los archivos JSON en el repositorio automáticamente**.
-3.  Tú recibes los resultados haciendo `git pull`.
+### Opción A: GitHub Pages (recomendado)
+1. Ve a **Settings → Pages**
+2. Source: **Deploy from branch** → `gh-pages`
+3. Abre: `https://TU-USUARIO.github.io/TU-REPO/`
 
----
-
-
-## ⚡ Modo "Magic Sync" (Opcional)
-
-Si quieres que **tu dashboard local se actualice solo** sin tener que hacer `git pull`, debes configurar tu ordenador como un **Self-Hosted Runner**.
-
-1.  Ve a tu repo en GitHub -> Settings -> Actions -> Runners -> New self-hosted runner.
-2.  Sigue las instrucciones para instalarlo en tu PC (Linux/Mac/Windows).
-3.  Edita `.github/workflows/devsecops.yml` y cambia:
-    ```yaml
-    runs-on: self-hosted  # En lugar de ubuntu-latest
-    ```
-    
-**Resultado**: Cuando hagas `push`, el análisis correrá en TU máquina, actualizará los archivos de `dashboard/data` localmente y tu dashboard (localhost:7890) mostrará los cambios al instante.
+### Opción B: Descargar Artifacts
+1. Ve a **Actions** → click en el workflow
+2. Descarga **security-dashboard-complete**
 
 ---
 
-## 🛠️ Ejecución Local (Opcional)
+## 🔍 ¿Qué analiza?
 
-Si quieres probar antes de subir:
+| Análisis | Herramienta | Detecta |
+|----------|-------------|---------|
+| **SAST** | Semgrep | Vulnerabilidades en código (SQL injection, XSS, etc.) |
+| **SCA Repo** | Trivy | Dependencias vulnerables (npm, pip, etc.) |
+| **SCA Image** | Trivy | Vulnerabilidades en imagen Docker |
 
-```bash
-./scan.sh
+---
+
+## 📁 Estructura
+
+```
+tu-repo/
+├── app/                    # 👈 Tu código aquí
+├── dashboard/              # Panel web de resultados
+├── .github/workflows/      # Automatización
+└── Dockerfile              # Para análisis de imagen
 ```
 
-Esto generará los reportes y el PDF en `dashboard/data/`.
+---
+
+## ❓ FAQ
+
+**¿Necesito Docker instalado?**
+No. Todo corre en GitHub Actions.
+
+**¿Funciona con Python/Node/Java/etc?**
+Sí. Semgrep y Trivy soportan múltiples lenguajes.
+
+**¿Cuánto tarda?**
+~2-5 minutos dependiendo del tamaño del proyecto.
+
+**¿Puedo personalizar los costes/notas?**
+Sí. En el dashboard → Risk & Value → edita los multiplicadores.
+
+---
+
+## 📄 Licencia
+
+MIT - Úsalo libremente.

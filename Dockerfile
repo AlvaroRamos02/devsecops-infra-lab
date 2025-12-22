@@ -1,32 +1,33 @@
-# Use Node.js 20 Alpine for lighter image
-FROM node:20-alpine AS builder
+# ═══════════════════════════════════════════════════════════════
+# SecureShift - Universal Dockerfile
+# Supports: Python, Node.js, and other common languages
+# ═══════════════════════════════════════════════════════════════
+
+# ══════════════ Python App ══════════════
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy package files from the app directory
-COPY app/package.json ./
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies (using install since lockfile might be missing)
-RUN npm install
+# Copy requirements first for caching
+COPY app/*/requirements.txt ./requirements.txt 2>/dev/null || \
+    COPY app/requirements.txt ./requirements.txt 2>/dev/null || \
+    echo "# No requirements.txt found" > ./requirements.txt
 
-# Copy the rest of the application code
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || true
+
+# Copy application code (excluding venv)
 COPY app/ .
 
-# Build the Next.js application
-RUN npm run build
+# Default command (override as needed)
+CMD ["python", "--version"]
 
-# Production image, copy all the files and run next
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV production
-
-# Copy necessary files for running the app
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-
-EXPOSE 3000
-
-CMD ["npm", "start"]
+# ══════════════ Notes ══════════════
+# This Dockerfile is intentionally generic to allow Trivy 
+# to scan Python dependencies. For production, customize
+# the CMD and add your specific entrypoint.
