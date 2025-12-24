@@ -37,7 +37,6 @@ function saveSettings(costs, scores) {
 // State management
 const state = {
     sast: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
-    scaFs: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
     scaImage: { data: [], filtered: [], page: 1, pageSize: 10, sort: { col: 'severity', asc: false } },
     dismissed: JSON.parse(localStorage.getItem('dismissedFindings') || '[]'),
     showDismissed: false,
@@ -57,15 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Promise.all([
         fetch('data/semgrep-report.json').then(res => res.ok ? res.json() : { results: [] }).catch(() => ({ results: [] })),
-        fetch('data/trivy-fs-report.json').then(res => res.ok ? res.json() : { Results: [] }).catch(() => ({ Results: [] })),
         fetch('data/trivy-image-report.json').then(res => res.ok ? res.json() : { Results: [] }).catch(() => ({ Results: [] }))
-    ]).then(([semgrepData, trivyFsData, trivyImageData]) => {
+    ]).then(([semgrepData, trivyImageData]) => {
         state.sast.data = processSemgrep(semgrepData);
-        state.scaFs.data = processTrivy(trivyFsData);
         state.scaImage.data = processTrivy(trivyImageData);
 
         applyFilters('sast');
-        applyFilters('scaFs');
         applyFilters('scaImage');
 
         updateOverview();
@@ -172,13 +168,13 @@ function resetSettings() {
 
 
 function updateOverview() {
-    const allFindings = [...state.sast.data, ...state.scaFs.data, ...state.scaImage.data];
+    const allFindings = [...state.sast.data, ...state.scaImage.data];
     let filteredFindings = allFindings;
 
     if (state.overviewFilter === 'SAST') {
         filteredFindings = state.sast.data;
     } else if (state.overviewFilter === 'SCA') {
-        filteredFindings = [...state.scaFs.data, ...state.scaImage.data];
+        filteredFindings = state.scaImage.data;
     }
 
     updateSummary(filteredFindings);
@@ -213,7 +209,6 @@ function navigateTo(viewId) {
         'overview': 'Dashboard Overview',
         'risk': 'Risk & Value Assessment',
         'sast': 'SAST - Code Analysis',
-        'sca-fs': 'SCA - Repository Dependencies',
         'sca-image': 'SCA - Container Images'
     };
     document.getElementById('page-title').textContent = titles[viewId] || 'Dashboard';
@@ -424,7 +419,7 @@ function updateSort(type, value) {
 
 function applyFilters(type) {
     const s = state[type];
-    const container = document.getElementById(`${type === 'scaFs' ? 'sca-fs' : (type === 'scaImage' ? 'sca-image' : 'sast')}-view`);
+    const container = document.getElementById(`${type === 'scaImage' ? 'sca-image' : 'sast'}-view`);
     const severityFilter = container.querySelector('.filter-select').value;
     const searchFilter = container.querySelector('.search-input').value.toLowerCase();
 
@@ -494,7 +489,7 @@ function renderDismissButton(uuid) {
 
 function renderList(type) {
     const s = state[type];
-    const listId = type === 'scaFs' ? 'sca-fs-list' : (type === 'scaImage' ? 'sca-image-list' : 'sast-list');
+    const listId = type === 'scaImage' ? 'sca-image-list' : 'sast-list';
     const listContainer = document.getElementById(listId);
 
     if (type === 'sast') {
@@ -732,7 +727,7 @@ function renderPagination(type) {
     const totalItems = type === 'sast' ? s.filtered.length : groupScaFindings(s.filtered).length;
     const totalPages = Math.ceil(totalItems / s.pageSize);
 
-    const containerId = type === 'scaFs' ? 'sca-fs-pagination' : (type === 'scaImage' ? 'sca-image-pagination' : 'sast-pagination');
+    const containerId = type === 'scaImage' ? 'sca-image-pagination' : 'sast-pagination';
     const container = document.getElementById(containerId);
 
     container.innerHTML = `
@@ -750,7 +745,7 @@ function changePage(type, delta) {
 // --- Drawer & Details ---
 
 function openDrawer(uuid) {
-    const allFindings = [...state.sast.data, ...state.scaFs.data, ...state.scaImage.data];
+    const allFindings = [...state.sast.data, ...state.scaImage.data];
     const finding = allFindings.find(f => f.uuid === uuid);
     if (!finding) return;
 
@@ -848,7 +843,6 @@ function toggleDismiss(uuid) {
 
     // Re-apply filters to update view
     applyFilters('sast');
-    applyFilters('scaFs');
     applyFilters('scaImage');
 }
 
@@ -861,7 +855,6 @@ function toggleDismissed(type) {
     if (checkbox) {
         state.showDismissed = checkbox.checked;
         applyFilters('sast');
-        applyFilters('scaFs');
         applyFilters('scaImage');
     }
 }
@@ -882,7 +875,6 @@ function exportPDF() {
     // Filtered Content
     const allFiltered = [
         ...state.sast.filtered,
-        ...state.scaFs.filtered,
         ...state.scaImage.filtered
     ];
 
@@ -946,7 +938,6 @@ function exportPDF() {
 function exportData() {
     const allFiltered = [
         ...state.sast.filtered,
-        ...state.scaFs.filtered,
         ...state.scaImage.filtered
     ];
 

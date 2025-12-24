@@ -61,15 +61,6 @@
                         </svg>
                     </span> SAST (Code)
                 </button>
-                <button class="nav-btn" onclick="navigateTo('sca-fs')">
-                    <span class="icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                        </svg>
-                    </span> SCA (Repo)
-                </button>
                 <button class="nav-btn" onclick="navigateTo('sca-image')">
                     <span class="icon">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -380,35 +371,6 @@
                     </div>
 
                     <div class="pagination-controls" id="sast-pagination"></div>
-                </div>
-
-                <!-- SCA FS View -->
-                <div id="sca-fs-view" class="view-section">
-                    <div class="table-header">
-                        <h2>Repository Dependencies</h2>
-                        <div class="table-actions">
-                            <select class="filter-select" onchange="applyFilters('scaFs')">
-                                <option value="">All Severities</option>
-                                <option value="CRITICAL">Critical</option>
-                                <option value="HIGH">High</option>
-                                <option value="MEDIUM">Medium</option>
-                                <option value="LOW">Low</option>
-                            </select>
-                            <select class="filter-select" id="sort-scaFs" onchange="updateSort('scaFs', this.value)">
-                                <option value="severity_desc">Severity (High to Low)</option>
-                                <option value="severity_asc">Severity (Low to High)</option>
-                                <option value="name_asc">Package Name (A-Z)</option>
-                            </select>
-                            <input type="text" placeholder="Search packages..." class="search-input"
-                                onkeyup="applyFilters('scaFs')">
-                        </div>
-                    </div>
-
-                    <div id="sca-fs-list" class="vuln-list">
-                        <!-- Populated by JS -->
-                    </div>
-
-                    <div class="pagination-controls" id="sca-fs-pagination"></div>
                 </div>
 
                 <!-- SCA Image View -->

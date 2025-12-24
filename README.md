@@ -34,14 +34,10 @@ git push
 
 ## 📊 Ver Resultados
 
-### Opción A: GitHub Pages (recomendado)
-1. Ve a **Settings → Pages**
-2. Source: **Deploy from branch** → `gh-pages`
-3. Abre: `https://TU-USUARIO.github.io/TU-REPO/`
-
-### Opción B: Descargar Artifacts
+### Descargar Artifacts (recomendado)
 1. Ve a **Actions** → click en el workflow
-2. Descarga **security-dashboard-complete**
+2. Descarga **security-dashboard-complete** (incluye `dashboard/` + `dashboard/data/*.json`)
+3. Abre `dashboard/index.html` (o sírvelo con Nginx)
 
 ---
 
@@ -50,7 +46,6 @@ git push
 | Análisis | Herramienta | Detecta |
 |----------|-------------|---------|
 | **SAST** | Semgrep | Vulnerabilidades en código (SQL injection, XSS, etc.) |
-| **SCA Repo** | Trivy | Dependencias vulnerables (npm, pip, etc.) |
 | **SCA Image** | Trivy | Vulnerabilidades en imagen Docker |
 
 ---

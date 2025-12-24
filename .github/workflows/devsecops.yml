@@ -20,10 +20,22 @@ jobs:
       - name: 📁 Create Report Directory
         run: mkdir -p dashboard/data
 
+      - name: 💾 Cache Semgrep
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/semgrep
+          key: semgrep-${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}
+          restore-keys: |
+            semgrep-${{ runner.os }}-${{ github.repository }}-
+            semgrep-${{ runner.os }}-
+
       - name: 🛡️ Run Semgrep SAST
         continue-on-error: true
         run: |
-          docker run --rm -v "${PWD}:/src" returntocorp/semgrep:latest \
+          docker run --rm \
+            -v "${PWD}:/src" \
+            -v "${HOME}/.cache/semgrep:/root/.cache/semgrep" \
+            returntocorp/semgrep:latest \
             semgrep scan --config=auto --json --output=/src/dashboard/data/semgrep-report.json /src/app || true
 
       - name: 📊 Upload SAST Report
@@ -35,37 +47,10 @@ jobs:
           retention-days: 14
 
   # ═══════════════════════════════════════════════════════════════
-  # 2. SCA Repo - Software Composition Analysis (Dependencies)
+  # 2. SCA - Container Image Scan (unificado)
   # ═══════════════════════════════════════════════════════════════
-  sca-repo:
-    name: "SCA repo"
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 📁 Create Report Directory
-        run: mkdir -p dashboard/data
-
-      - name: 📦 Run Trivy FS (Repo)
-        continue-on-error: true
-        run: |
-          docker run --rm -v "${PWD}:/src" aquasec/trivy:latest \
-            fs --format json --output /src/dashboard/data/trivy-fs-report.json /src || true
-
-      - name: 📊 Upload SCA Repo Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-fs-report
-          path: dashboard/data/trivy-fs-report.json
-          retention-days: 14
-
-  # ═══════════════════════════════════════════════════════════════
-  # 3. Build Image
-  # ═══════════════════════════════════════════════════════════════
-  build-image:
-    name: "Montar imagen"
+  sca:
+    name: "SCA (image)"
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Code
@@ -74,48 +59,36 @@ jobs:
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🏗️ Build Docker Image
-        run: docker build -t secureshift:scan .
-
-      - name: 💾 Save Image as Tarball
-        run: |
-          mkdir -p /tmp/docker
-          docker save secureshift:scan -o /tmp/docker/image.tar
-
-      - name: 📤 Upload Image Artifact
-        uses: actions/upload-artifact@v4
+      - name: 🏗️ Build Docker Image (cached)
+        uses: docker/build-push-action@v6
         with:
-          name: docker-image
-          path: /tmp/docker/image.tar
-          retention-days: 1
+          context: .
+          tags: secureshift:scan
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  # ═══════════════════════════════════════════════════════════════
-  # 4. SCA Container - Container Image Scan
-  # ═══════════════════════════════════════════════════════════════
-  sca-image:
-    name: "SCA imagen"
-    runs-on: ubuntu-latest
-    needs: build-image
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
+      - name: 💾 Cache Trivy
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/trivy-cache
+          key: trivy-${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}
+          restore-keys: |
+            trivy-${{ runner.os }}-${{ github.repository }}-
+            trivy-${{ runner.os }}-
 
       - name: 📁 Create Report Directory
         run: mkdir -p dashboard/data
 
-      - name: 📥 Download Image Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp/docker
-
-      - name: 🐳 Load Docker Image
-        run: docker load -i /tmp/docker/image.tar
-
       - name: 🔍 Run Trivy Image Scan
         continue-on-error: true
         run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "${PWD}:/src" aquasec/trivy:latest \
+          mkdir -p "${{ runner.temp }}/trivy-cache"
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}:/src" \
+            -v "${{ runner.temp }}/trivy-cache:/root/.cache/" \
+            aquasec/trivy:latest \
             image --format json --output /src/dashboard/data/trivy-image-report.json secureshift:scan || true
 
       - name: 📊 Upload SCA Image Report
@@ -124,4 +97,37 @@ jobs:
         with:
           name: trivy-image-report
           path: dashboard/data/trivy-image-report.json
+          retention-days: 14
+
+  # ═══════════════════════════════════════════════════════════════
+  # 3. Package Dashboard Artifact (HTML + reports)
+  # ═══════════════════════════════════════════════════════════════
+  package-dashboard:
+    name: "Dashboard (artifact)"
+    runs-on: ubuntu-latest
+    needs: [sast, sca]
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📁 Create Report Directory
+        run: mkdir -p dashboard/data
+
+      - name: 📥 Download SAST Report
+        uses: actions/download-artifact@v4
+        with:
+          name: semgrep-report
+          path: dashboard/data
+
+      - name: 📥 Download SCA Report
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-image-report
+          path: dashboard/data
+
+      - name: 📦 Upload Complete Dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-dashboard-complete
+          path: dashboard
           retention-days: 14
