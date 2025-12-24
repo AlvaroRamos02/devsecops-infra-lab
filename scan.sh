@@ -44,21 +44,7 @@ else
     echo -e "${RED}[✘] SAST scan failed.${NC}"
 fi
 
-# 2. SCA - Trivy FS (Repo Dependencies)
-echo -e "\n${YELLOW}[*] Running SCA FS (Trivy)...${NC}"
-docker run --rm \
-    -v "$WORKSPACE":/src \
-    aquasec/trivy fs /src/app \
-    --format json \
-    --output "/src/dashboard/data/trivy-fs-report.json"
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}[✔] SCA FS scan completed.${NC}"
-else
-    echo -e "${RED}[✘] SCA FS scan failed.${NC}"
-fi
-
-# 3. Docker Build & SCA Image
+# 2. Docker Build & SCA Image
 echo -e "\n${YELLOW}[*] Building Docker image for scanning...${NC}"
 IMAGE_NAME="secureshift:scan"
 docker build -t $IMAGE_NAME .
