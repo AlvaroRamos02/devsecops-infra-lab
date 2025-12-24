@@ -1,16 +1,6 @@
 {
   "SchemaVersion": 2,
-  "ReportID": "019b4709-c199-71b5-94ef-9c4e1456e5b3",
-  "CreatedAt": "2025-12-22T17:09:40.377113616Z",
-  "ArtifactID": "sha256:aeb69f37139f3f878bf408260e3b7b8db020d51645ab4e4dc6e40d24323fb51c",
-  "ArtifactName": "/src",
-  "ArtifactType": "repository",
-  "Metadata": {
-    "RepoURL": "https://github.com/AlvaroRamos02/devsecops-infra-lab",
-    "Branch": "main",
-    "Commit": "a04bbeae2cd6d8b59cf27f563f682d047a1f3449",
-    "CommitMsg": "again",
-    "Author": "Alvaro \u003calvaroramosmo@gmail.com\u003e",
-    "Committer": "Alvaro \u003calvaroramosmo@gmail.com\u003e"
-  }
+  "CreatedAt": "2025-12-22T18:10:49.845974708Z",
+  "ArtifactName": "/src/app",
+  "ArtifactType": "filesystem"
 }
